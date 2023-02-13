@@ -1,0 +1,225 @@
+# spell-checker: disable
+# yamllint disable
+<%
+require 'open3'
+require 'json'
+
+report_dir = ENV['REPORT_DIR'] || 'test/reports'
+report_ts = ENV['REPORT_TS'] || Time.now.strftime('%Y-%m-%d-%H-%M-%S')
+tf_output, rc = Open3.capture2('terraform -chdir=test/setup output -json')
+if rc != 0
+  abort 'Failed to capture Terraform output from test/setup'
+end
+harness_outputs = JSON.parse(tf_output).map { |k,v| [k, v['value']] }.to_h
+
+def hash_to_input_var(params)
+  "{#{params.map do |k, v|
+        case v
+        when nil
+          "#{k}=null"
+        when Hash
+          "#{k}=#{hash_to_input_var(v)}"
+        when Array
+          "#{k}=[#{v.map do |e|
+               case e
+               when nil
+                "null"
+               when Hash
+                 hash_to_input_var(e)
+               when String
+                 "\\\"#{e}\\\""
+               else
+                 "#{e}"
+               end
+             end.join(',')}]"
+        when String
+          "#{k}=\\\"#{v}\\\""
+        else
+          "#{k}=#{v}"
+        end
+      end.join(',')}}"
+end
+
+standard_options = {
+  'release_channel' => 'STABLE',
+  'version' => nil,
+  'workload_pool' => nil,
+  'master_global_access' => true,
+  'etcd_kms' => nil,
+  'max_pods_per_node' => 110
+}
+
+standard_pool = {
+  'image_type' => 'COS_CONTAINERD',
+  'auto_upgrade' => true,
+  'autoscaling' => false,
+  'min_nodes_per_zone' => 1,
+  'max_nodes_per_zone' => 3,
+  'location_policy' => nil,
+  'auto_repair' => true,
+  'disk_size' => 20,
+  'disk_type' => 'pd-standard',
+  'labels' => nil,
+  'local_ssd_count' => 0,
+  'ephemeral_local_ssd_count' => 0,
+  'machine_type' => 'e2-medium',
+  'min_cpu_platform' => nil,
+  'preemptible' => true,
+  'spot' => false,
+  'boot_disk_kms_key' => nil,
+  'enable_gcfs' => false,
+  'enable_gvnic' => false,
+  'enable_gvisor_sandbox' => false,
+  'enable_secure_boot' => false,
+  'enable_integrity_monitoring' => true,
+  'max_surge' => 1,
+  'max_unavailable' => 0,
+  'placement_policy' => nil,
+  'metadata' => nil,
+  'sysctls' => nil,
+  'taints' => nil,
+  'tags' => nil
+}
+
+standard_autoscaling = {
+  'autoscaling_profile' => 'BALANCED',
+  'resource_limits' => [
+    {
+      'resource_type' => 'cpu',
+      'minimum' => 4,
+      'maximum' => 12
+    },
+    {
+      'resource_type' => 'memory',
+      'minimum' => 8,
+      'maximum' => 24
+    }
+  ],
+  'nap' => {
+    'min_cpu_platform' => nil,
+    'boot_disk_kms_key' => nil,
+    'disk_size' => 20,
+    'disk_type' => 'pd-balanced',
+    'image_type' => 'COS_CONTAINERD',
+    'auto_upgrade' => true,
+    'auto_repair' => true,
+    'enable_secure_boot' => false,
+    'enable_integrity_monitoring' => true,
+    'tags' => nil
+  }
+}
+
+autopilot_options = {
+  'release_channel' => 'STABLE',
+  'master_global_access' => true,
+  'etcd_kms' => nil
+}
+
+autopilot_nap = {
+  'tags' => nil
+}
+
+prefix = harness_outputs['prefix']
+
+subnet_with_master = lambda { |cidr| harness_outputs['subnet_template'].merge({'master_cidr' => cidr}) }
+%>
+# yamllint enable
+# yamllint disable rule:line-length
+---
+driver:
+  name: terraform
+  command_timeout: 1800
+  verify_version: true
+  variables:
+    project_id: <%= harness_outputs['project_id'] %>
+    master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
+    service_account: <%= harness_outputs['service_account'] %>
+
+provisioner:
+  name: terraform
+
+verifier:
+  name: terraform
+  color: true
+  systems:
+    - name: google
+      backend: gcp
+
+platforms:
+  - name: standard-min
+    driver:
+      root_module_directory: test/fixtures/root
+      variables:
+        name: <%= "#{prefix}-std-min" %>
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.0/28")) %>'
+        node_pools: '{}'
+  - name: standard-fixed-pool-stable
+    driver:
+      root_module_directory: test/fixtures/root
+      variables:
+        name: <%= "#{prefix}-std-fixed-stable" %>
+        description: Private GKE stable release test with fixed pool
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.16/28")) %>'
+        node_pools: '{fixed-stable=<%= hash_to_input_var(standard_pool) %>}'
+  - name: standard-fixed-version
+    driver:
+      root_module_directory: test/fixtures/root
+      variables:
+        name: <%= "#{prefix}-std-fixed-v124" %>
+        description: Private GKE v1.24 test with fixed pool
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.32/28")) %>'
+        node_pools: '{fixed-v124=<%= hash_to_input_var(standard_pool) %>}'
+        options: '<%= hash_to_input_var(standard_options.merge({"release_channel" => "UNSPECIFIED", "version" => "1.24"})) %>'
+  - name: standard-autoscaling-pool-stable
+    driver:
+      root_module_directory: test/fixtures/root
+      variables:
+        name: <%= "#{prefix}-std-as-stable" %>
+        description: Private GKE stable release test with declared autoscaling pool
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.48/28")) %>'
+        node_pools: '{as-stable=<%= hash_to_input_var(standard_pool.merge({"autoscaling" => true})) %>}'
+  - name: standard-autoscaling-pool-version
+    driver:
+      root_module_directory: test/fixtures/root
+      variables:
+        name: <%= "#{prefix}-std-as-v124" %>
+        description: Private GKE v1.24 test with declared autoscaling pool
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.64/28")) %>'
+        node_pools: '{as-v124=<%= hash_to_input_var(standard_pool.merge({"autoscaling" => true, "location_policy" => "BALANCED", "max_nodes" => 6})) %>}'
+        options: '<%= hash_to_input_var(standard_options.merge({"release_channel" => "UNSPECIFIED", "version" => "1.24"})) %>'
+  - name: standard-nap-stable
+    driver:
+      root_module_directory: test/fixtures/root
+      variables:
+        name: <%= "#{prefix}-std-nap-stable" %>
+        description: Private GKE stable release test with auto-provisioned node pool
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.80/28")) %>'
+        node_pools: '{}'
+        autoscaling: '<%= hash_to_input_var(standard_autoscaling) %>'
+  - name: standard-nap-version
+    driver:
+      root_module_directory: test/fixtures/root
+      variables:
+        name: <%= "#{prefix}-std-nap-v124" %>
+        description: Private GKE v1.24 test with auto-provisioned node pool
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.96/28")) %>'
+        node_pools: '{}'
+        options: '<%= hash_to_input_var(standard_options.merge({"release_channel" => "UNSPECIFIED", "version" => "1.24"})) %>'
+        autoscaling: '<%= hash_to_input_var(standard_autoscaling) %>'
+  - name: autopilot-min
+    driver:
+      root_module_directory: test/fixtures/autopilot
+      variables:
+        name: <%= "#{prefix}-auto-min" %>
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.1.0/28")) %>'
+  - name: autopilot-nap
+    driver:
+      root_module_directory: test/fixtures/autopilot
+      variables:
+        name: <%= "#{prefix}-auto-nap" %>
+        description: Private Autopilot GKE with node auto-provisioning config
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.1.16/28")) %>'
+        nap: '<%= hash_to_input_var(autopilot_nap.merge({"tags" => ["#{prefix}-auto-nap"]})) %>'
+
+suites:
+  - name: private-gke

@@ -8,3 +8,19 @@ fileignoreconfig:
   checksum: 1a73442a316535a2e8a67a401aef15943f73ab0e405577f6f405e81400a12d57
 - filename: .github/workflows/pre-commit.yml
   checksum: d973823a6d233c44075ad96c2f92e2d2522b3c5767ef6e8376f0731e8a55ab38
+- filename: Makefile
+  checksum: 77d9b5e81555329b4e2463aa4f628bd15a09e4db781b0a070695b47f613b02e2
+- filename: modules/autopilot/README.md
+  checksum: 5af914427bb0f9ea97835da1e08a5789b090fad671457aa8ab7fa9def4ea51d0
+- filename: modules/autopilot/variables.tf
+  checksum: f62c235fba2bc80d03a4265bf3fb7077a2d6fd4fb0c257d99a351e046722968a
+- filename: modules/autopilot/main.tf
+  checksum: e7954bf85b328ea69af82f03e013a03802e7125ba2cba85f13cf9043857ccd9a
+- filename: README.md
+  checksum: 002cdcff9a86a873b1f53711f7156ee8b77f94e11ebc40907cab9a3ebbebaf7b
+- filename: main.tf
+  checksum: 1072aa4fd337ec8bacc9e6e720e58f1a19915294f9e7c89f71890bf7f247f0e8
+- filename: test/integration/private-gke/controls/node_pools.rb
+  checksum: a19bd28edbf555a07b315b46ee7b73bf5298e350ddfaff8f8c124f80ef2be9be
+- filename: variables.tf
+  checksum: 36566aafe932376e7256a1aa7017fc02b7203adc0d305aa975bf1a728e427fb9

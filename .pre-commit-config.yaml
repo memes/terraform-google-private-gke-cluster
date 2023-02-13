@@ -7,6 +7,7 @@ repos:
       - id: yamllint
         files: \.(yml|yaml|talismanrc)$
         types: [file, yaml]
+        exclude: templates/kubeconfig\.yaml$
         entry: yamllint --strict
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.77.1
