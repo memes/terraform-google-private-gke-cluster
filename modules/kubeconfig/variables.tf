@@ -1,7 +1,7 @@
 variable "cluster_id" {
   type = string
   validation {
-    condition     = can(regex("^(?:https://www.googleapis.com/compute/v1/)?projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/locations/[a-z]{2,}-[a-z]+-[1-9]+[a-z]?/clusters/[a-z][a-z0-9-]{0,38}[a-z0-9]$", var.cluster_id))
+    condition     = can(regex("^(?:https://www.googleapis.com/compute/v1/)?projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/locations/[a-z]{2,}-[a-z]+[1-9](?:-[a-z])?/clusters/[a-z][a-z0-9-]{0,38}[a-z0-9]$", var.cluster_id))
     error_message = "The cluster_id value must be a valid GKE cluster identifier."
   }
   description = <<-EOD
