@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.0.0...v1.0.1) (2023-04-06)
+
+
+### Bug Fixes
+
+* **kubeconfig:** Constrain google provider &gt;= 4.52 ([3dfeced](https://github.com/memes/terraform-google-private-gke-cluster/commit/3dfeced56c454715ab9f353bb06d5853f41eda02))
+
 ## 1.0.0 (2023-02-13)
 
 
