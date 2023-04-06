@@ -3,7 +3,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 4.42, < 4.49.0, > 4.51.0" # See https://github.com/hashicorp/terraform-provider-google/issues/13507kitchen
+      version = ">= 4.52"
     }
   }
 }
