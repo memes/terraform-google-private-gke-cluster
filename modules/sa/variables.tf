@@ -45,7 +45,7 @@ variable "description" {
 variable "repositories" {
   type = list(string)
   validation {
-    condition     = var.repositories == null ? true : length(join("", [for repo in var.repositories : can(regex("^(?:(?:(?:asia|eu|us).)?gcr.io|[^-]+-docker.pkg.dev/[^/]+/[^/]+)", repo)) ? "x" : ""])) == length(var.repositories)
+    condition     = var.repositories == null ? true : length(join("", [for repo in var.repositories : can(regex("^(?:(?:(?:asia|eu|us).)?gcr.io|[a-z]{2,}(?:-[a-z]+[1-9])?-docker.pkg.dev/[^/]+/[^/]+)", repo)) ? "x" : ""])) == length(var.repositories)
     error_message = "Each repositories entry must be a valid gcr.io or XXX-docker.pkg.dev repository."
   }
   default     = []
