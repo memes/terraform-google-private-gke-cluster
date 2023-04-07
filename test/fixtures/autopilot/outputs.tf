@@ -20,6 +20,15 @@ output "endpoint_url" {
   value     = module.test.endpoint_url
 }
 
+output "service_account" {
+  value = module.sa.email
+}
+
+output "kubeconfig" {
+  sensitive = true
+  value     = module.kubeconfig.kubeconfig
+}
+
 # Re-ouput some complex inputs as JSON, for easier parsing in controls
 output "subnet_json" {
   value = jsonencode(var.subnet)

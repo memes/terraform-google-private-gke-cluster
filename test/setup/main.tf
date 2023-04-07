@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/google"
       version = ">= 4.42"
     }
+    http = {
+      source  = "hashicorp/http"
+      version = ">= 3.2"
+    }
     local = {
       source  = "hashicorp/local"
       version = ">= 2.2"
@@ -12,6 +16,16 @@ terraform {
     random = {
       source  = "hashicorp/random"
       version = ">= 3.3"
+    }
+  }
+}
+
+data "http" "my_address" {
+  url = "https://checkip.amazonaws.com"
+  lifecycle {
+    postcondition {
+      condition     = self.status_code == 200
+      error_message = "Failed to get local IP address"
     }
   }
 }
@@ -36,39 +50,32 @@ resource "random_pet" "prefix" {
 
 locals {
   prefix = random_pet.prefix.id
-  gke_sa = format("%s-gke@%s.iam.gserviceaccount.com", local.prefix, var.project_id)
   labels = merge({
     use-case = "automated-testing"
-    product  = "f5-dc-google-ingress-demo"
+    product  = "terraform-google-private-gke-cluster"
     driver   = "kitchen-terraform"
   }, var.labels)
 }
 
-module "sa" {
-  source       = "../../modules/sa/"
-  project_id   = var.project_id
-  name         = format("%s-gke", local.prefix)
-  repositories = var.repositories
-}
-
 module "vpc" {
   source      = "memes/multi-region-private-network/google"
-  version     = "1.0.0"
+  version     = "2.0.0"
   project_id  = var.project_id
   name        = format("%s-test", local.prefix)
   description = format("test VPC network (%s)", local.prefix)
   regions     = [var.region]
   cidrs = {
-    primary             = "172.16.0.0/16"
-    primary_subnet_size = 24
+    primary_ipv4_cidr        = "172.16.0.0/16"
+    primary_ipv4_subnet_size = 24
+    primary_ipv6_cidr        = null
     secondaries = {
       pods = {
-        cidr        = "10.0.0.0/8"
-        subnet_size = 16
+        ipv4_cidr        = "10.0.0.0/8"
+        ipv4_subnet_size = 16
       }
       services = {
-        cidr        = "10.100.0.0/16"
-        subnet_size = 20
+        ipv4_cidr        = "10.100.0.0/16"
+        ipv4_subnet_size = 20
       }
     }
   }
@@ -80,12 +87,14 @@ module "vpc" {
     mtu                   = 1460
     routing_mode          = "GLOBAL"
     flow_logs             = false
+    ipv6_ula              = false
+    nat_logs              = false
   }
 }
 
 module "restricted_apis_dns" {
   source             = "memes/restricted-apis-dns/google"
-  version            = "1.0.1"
+  version            = "1.2.0"
   project_id         = var.project_id
   name               = format("%s-restricted-apis", local.prefix)
   labels             = local.labels
@@ -97,26 +106,63 @@ module "restricted_apis_dns" {
 
 module "bastion" {
   source                = "memes/private-bastion/google"
-  version               = "2.3.3"
+  version               = "2.3.5"
   project_id            = var.project_id
-  prefix                = format("%s-inside", local.prefix)
-  proxy_container_image = "ghcr.io/memes/terraform-google-private-bastion/forward-proxy:2.3.3"
+  prefix                = format("%s-test", local.prefix)
+  external_ip           = true
+  proxy_container_image = "ghcr.io/memes/terraform-google-private-bastion/forward-proxy:2.3.5"
   zone                  = random_shuffle.zones.result[0]
-  subnet                = module.vpc.subnets[var.region]
+  subnet                = module.vpc.subnets_by_region[var.region].self_link
   labels                = local.labels
   bastion_targets = {
-    service_accounts = [
-      local.gke_sa,
+    cidrs = [
+      "172.16.0.0/16",
     ]
-    cidrs    = null
-    tags     = null
-    priority = 900
+    service_accounts = null
+    tags             = null
+    priority         = 900
   }
   depends_on = [
-    module.sa,
     module.vpc,
     module.restricted_apis_dns,
   ]
+}
+
+resource "google_compute_firewall" "bastion" {
+  project     = var.project_id
+  name        = format("%s-allow-proxy-ingress", local.prefix)
+  network     = module.vpc.self_link
+  description = format("Allow tester access to proxy (%s)", local.prefix)
+  direction   = "INGRESS"
+  source_ranges = [
+    format("%s/32", trimspace(data.http.my_address.response_body)),
+  ]
+  target_service_accounts = [
+    module.bastion.service_account,
+  ]
+  allow {
+    protocol = "TCP"
+    ports = [
+      8888,
+    ]
+  }
+  depends_on = [
+    module.bastion,
+  ]
+}
+
+resource "google_container_registry" "gcr" {
+  project  = var.project_id
+  location = var.gcr_location
+}
+
+resource "google_artifact_registry_repository" "gar" {
+  project       = var.project_id
+  repository_id = format("%s-test", local.prefix)
+  format        = "DOCKER"
+  location      = var.region
+  description   = "Testing GAR for terraform-google-private-gke-cluster"
+  labels        = local.labels
 }
 
 # Not using these values to drive anything, but makes a good sentinel for testing
@@ -126,7 +172,6 @@ resource "local_file" "harness_tfvars" {
   # Empty!
   EOC
   depends_on = [
-    module.sa,
     module.vpc,
     module.bastion,
   ]

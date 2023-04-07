@@ -1,0 +1,32 @@
+# spell-checker: disable
+---
+name: sa
+title: Verifies that a service account matches expectations
+maintainer: Matthew Emes <memes@matthewemes.com>
+license: Apache-2.0
+version: 1.0.0
+supports:
+  - platform: gcp
+depends:
+  - name: inspec-gcp
+    git: https://github.com/inspec/inspec-gcp.git
+    tag: v1.10.39
+inputs:
+  - name: output_id
+    type: string
+    required: true
+  - name: output_email
+    type: string
+    required: true
+  - name: output_member
+    type: string
+    required: true
+  - name: input_name
+    type: string
+    required: true
+  - name: input_display_name
+    type: string
+    required: false
+  - name: output_repositories_json
+    type: string
+    required: true

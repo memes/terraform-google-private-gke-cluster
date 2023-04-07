@@ -8,3 +8,6 @@ region = "us-west1"
 labels = {
     "owner" = "tester-name"
 }
+
+# Optional: Override default Google Container Registry location
+gcr_location = "EU"
