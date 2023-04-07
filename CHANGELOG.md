@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.0.1...v1.0.2) (2023-04-07)
+
+
+### Bug Fixes
+
+* Cluster_id could be a region or a zone ([bf2356d](https://github.com/memes/terraform-google-private-gke-cluster/commit/bf2356d0a82f24511456080ece7acb25d3858d74)), closes [#11](https://github.com/memes/terraform-google-private-gke-cluster/issues/11)
+* **sa:** Valid GAR repos failed validation ([5ae6a0d](https://github.com/memes/terraform-google-private-gke-cluster/commit/5ae6a0d942ca9fd32c0d49d339f94702ce2f3021))
+
 ## [1.0.1](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.0.0...v1.0.1) (2023-04-06)
 
 
