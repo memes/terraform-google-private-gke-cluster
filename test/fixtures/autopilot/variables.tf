@@ -27,10 +27,6 @@ variable "master_authorized_networks" {
   }))
 }
 
-variable "service_account" {
-  type = string
-}
-
 variable "labels" {
   type    = map(string)
   default = {}
@@ -85,4 +81,8 @@ variable "nap" {
     tags = list(string)
   })
   default = null
+}
+
+variable "proxy_url" {
+  type = string
 }

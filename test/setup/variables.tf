@@ -16,7 +16,7 @@ variable "labels" {
   default = {}
 }
 
-variable "repositories" {
-  type    = list(string)
-  default = []
+variable "gcr_location" {
+  type    = string
+  default = "US"
 }

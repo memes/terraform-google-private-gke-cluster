@@ -5,7 +5,7 @@ control 'node_pools' do
   title 'Ensure GKE node pools meet expectations'
   impact 1.0
   project_id = input('input_project_id')
-  service_account = input('input_service_account')
+  service_account = input('output_service_account')
   location = input('output_location')
   cluster_name = input('output_name')
   node_pools = JSON.parse(input('output_node_pools_json'), { symbolize_names: true })
@@ -75,7 +75,7 @@ control 'nap_pools' do
   title 'Ensure GKE auto-provisioned node pools meet expectations'
   impact 1.0
   project_id = input('input_project_id')
-  service_account = input('input_service_account')
+  service_account = input('output_service_account')
   location = input('output_location')
   cluster_name = input('output_name')
   autoscaling = JSON.parse(input('output_autoscaling_json'), { symbolize_names: true })

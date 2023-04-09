@@ -27,10 +27,6 @@ variable "master_authorized_networks" {
   }))
 }
 
-variable "service_account" {
-  type = string
-}
-
 variable "labels" {
   type    = map(string)
   default = {}
@@ -189,4 +185,8 @@ variable "dns" {
     cluster_dns_domain = string
   })
   default = null
+}
+
+variable "proxy_url" {
+  type = string
 }

@@ -1,0 +1,24 @@
+# spell-checker: disable
+---
+name: access
+title: Verifies access to a private GKE cluster via proxy
+license: Apache-2.0
+version: 1.0.3
+supports:
+  - platform-family: unix
+  - platform-family: windows
+depends:
+  - name: inspec-httprb
+    # path: /Users/memes/projects/personal/inspec-httprb
+    git: https://github.com/memes/inspec-httprb
+    tag: v1.0.2
+inputs:
+  - name: input_proxy_url
+    type: string
+    required: true
+  - name: output_ca_cert
+    type: string
+    required: true
+  - name: output_endpoint_url
+    type: string
+    required: true

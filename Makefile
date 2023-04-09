@@ -66,9 +66,10 @@ test/ephemeral/%/main.tf: $(wildcard examples/%/*.tf)
 		--exclude .terraform.lock.hcl \
 		--exclude 'terraform.tfstate' \
 		examples/$*/ $(@D)/
-	sed -i '' -E -e '1h;2,$$H;$$!d;g' -e 's@module "sslo"[ \t]*{[ \t]*\n[ \t]*source[ \t]*=[ \t]*"[^"]+"@module "sslo" {\n  source = "../../../"@' $@
-	sed -i '' -E -e '1h;2,$$H;$$!d;g' -e 's@module "ips"[ \t]*{[ \t]*\n[ \t]*source[ \t]*=[ \t]*"[^"]+"@module "ips" {\n  source = "../../../modules/ips/"@g' $@
-	sed -i '' -E -e '1h;2,$$H;$$!d;g' -e 's@module "waf"[ \t]*{[ \t]*\n[ \t]*source[ \t]*=[ \t]*"[^"]+"@module "waf" {\n  source = "../../../modules/waf/"@g' $@
+	sed -i '' -E -e '1h;2,$$H;$$!d;g' -e 's@module "cluster"[ \t]*{[ \t]*\n[ \t]*source[ \t]*=[ \t]*"[^"]+"@module "cluster" {\n  source = "../../../"@' $@
+	sed -i '' -E -e '1h;2,$$H;$$!d;g' -e 's@module "autopilot"[ \t]*{[ \t]*\n[ \t]*source[ \t]*=[ \t]*"[^"]+"@module "autopilot" {\n  source = "../../../modules/autopilot/"@g' $@
+	sed -i '' -E -e '1h;2,$$H;$$!d;g' -e 's@module "kubeconfig"[ \t]*{[ \t]*\n[ \t]*source[ \t]*=[ \t]*"[^"]+"@module "kubeconfig" {\n  source = "../../../modules/kubeconfig/"@g' $@
+	sed -i '' -E -e '1h;2,$$H;$$!d;g' -e 's@module "sa"[ \t]*{[ \t]*\n[ \t]*source[ \t]*=[ \t]*"[^"]+"@module "sa" {\n  source = "../../../modules/sa/"@g' $@
 
 .PHONY: clean
 clean: $(wildcard $(TF_SETUP_SENTINEL))
@@ -90,28 +91,28 @@ realclean: clean
 # Helper to ensure code is ready for tagging
 # 1. Tag is a valid semver with v prefix (e.g. v1.0.0)
 # 1. Git tree is clean
-# 2. Each module is using a memes GitHub source and the version matches
+# 2. Each example is using a memes GitHub source and the version matches
 #    the tag to be applied
-# 3. CHANGELOG has an entry for the tag
-# 4. Inspec controls have version matching the tag
-# if all those pass, tag HEAD with version
-.PHONY: tag.%
-tag.%:
+# 3. Inspec controls have version matching the tag
+# if all those pass indicate success
+.PHONY: pre-release.%
+pre-release.%:
 	@echo '$*' | grep -Eq '^v(?:[0-9]+\.){2}[0-9]+$$' || \
 		(echo "Tag doesn't meet requirements"; exit 1)
 	@test "$(shell git status --porcelain | wc -l | grep -Eo '[0-9]+')" == "0" || \
 		(echo "Git tree is unclean"; exit 1)
 	@find examples -type f -name main.tf -print0 | \
-		xargs -0 awk 'BEGIN{m=0;s=0}; /module "sslo"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"(https:\/\/)?github.com\/memes\/f5-google-sslo\?ref=$*/ {s++}; END{if (s==0) { printf "%s has incorrect sslo source\n", FILENAME; exit 1}}'
+		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "cluster"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
 	@find examples -type f -name main.tf -print0 | \
-		xargs -0 awk 'BEGIN{m=0;s=0}; /module "ips"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"(https:\/\/)?github.com\/memes\/f5-google-sslo\/\/modules\/ips\?ref=$*"/ {s++}; END{if (s==0) { printf "%s has incorrect ips source\n", FILENAME; exit 1 }}'
+		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "autopilot"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/autopilot/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
 	@find examples -type f -name main.tf -print0 | \
-		xargs -0 awk 'BEGIN{m=0;s=0}; /module "waf"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"(https:\/\/)?github.com\/memes\/f5-google-sslo\/\/modules\/waf\?ref=$*"/ {s++}; END{if (s==0) { printf "%s has incorrect waf source\n", FILENAME; exit 1 }}'
-	@(grep -Eq '^## \[$(subst .,\.,$(*:v%=%))\] - [0-9]{4}(?:-[0-9]{2}){2}' CHANGELOG.md && \
-		grep -Eq '^\[$(subst .,\.,$(*:v%=%))\]: https://github.com/' CHANGELOG.md) || \
-		(echo "CHANGELOG is missing tag entry"; exit 1)
-	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/gce/inspec.yml || \
-		(echo "test/profiles/gce/inspec.yml has incorrect tag"; exit 1)
-	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/remote/inspec.yml || \
-		(echo "test/profiles/remote/inspec.yml has incorrect tag"; exit 1)
-	git tag -am 'Tagging release $*' $*
+		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "kubeconfig"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/kubeconfig/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
+	@find examples -type f -name main.tf -print0 | \
+		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "sa"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/sa/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
+	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/access/inspec.yml || \
+		(echo "test/profiles/access/inspec.yml has incorrect tag"; exit 1)
+	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/cluster/inspec.yml || \
+		(echo "test/profiles/cluster/inspec.yml has incorrect tag"; exit 1)
+	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/sa/inspec.yml || \
+		(echo "test/profiles/sa/inspec.yml has incorrect tag"; exit 1)
+	@echo 'Source is ready to release $*'
