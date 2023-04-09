@@ -139,11 +139,6 @@ provisioner:
 verifier:
   name: terraform
   color: true
-  systems:
-    - name: google
-      backend: gcp
-    - name: local
-      backend: local
 
 platforms:
   - name: standard-min
@@ -279,8 +274,26 @@ platforms:
 
 suites:
   - name: private-gke
+    verifier:
+      name: terraform
+      systems:
+        - name: gcp
+          backend: gcp
+          profile_locations:
+            - test/profiles/cluster
+        - name: local
+          backend: local
+          profile_locations:
+            - test/profiles/access
     excludes:
       - /^sa-/
   - name: sa
+    verifier:
+      name: terraform
+      systems:
+        - name: gcp
+          backend: gcp
+          profile_locations:
+            - test/profiles/sa
     excludes:
       - /^(?:standard|autopilot)-/
