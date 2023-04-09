@@ -109,8 +109,10 @@ pre-release.%:
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "kubeconfig"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/kubeconfig/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
 	@find examples -type f -name main.tf -print0 | \
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "sa"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/sa/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
-	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/integration/private-gke/inspec.yml || \
-		(echo "test/integration/private-gke/inspec.yml has incorrect tag"; exit 1)
-	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/integration/sa/inspec.yml || \
-		(echo "test/integration/sa/inspec.yml has incorrect tag"; exit 1)
+	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/access/inspec.yml || \
+		(echo "test/profiles/access/inspec.yml has incorrect tag"; exit 1)
+	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/cluster/inspec.yml || \
+		(echo "test/profiles/cluster/inspec.yml has incorrect tag"; exit 1)
+	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/sa/inspec.yml || \
+		(echo "test/profiles/sa/inspec.yml has incorrect tag"; exit 1)
 	@echo 'Source is ready to release $*'
