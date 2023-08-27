@@ -168,6 +168,7 @@ resource "google_container_cluster" "cluster" {
     ignore_changes = [
       initial_node_count,
       resource_labels,
+      dns_config,
     ]
   }
 
