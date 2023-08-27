@@ -155,6 +155,15 @@ resource "google_container_cluster" "cluster" {
     disabled = !try(var.options.default_snat, true)
   }
 
+  cluster_autoscaling {
+    auto_provisioning_defaults {
+      oauth_scopes = [
+        "https://www.googleapis.com/auth/cloud-platform",
+      ]
+      service_account = var.service_account
+    }
+  }
+
   lifecycle {
     ignore_changes = [
       initial_node_count,
