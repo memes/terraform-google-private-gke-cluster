@@ -23,7 +23,7 @@ resource "google_container_cluster" "cluster" {
   provider                 = google-beta
   project                  = var.project_id
   name                     = var.name
-  description              = coalesce(var.description, format("Private standard GKE cluster %s", var.name))
+  description              = coalesce(var.description, format("Private autopilot GKE cluster %s", var.name))
   location                 = data.google_compute_subnetwork.subnet.region
   enable_autopilot         = true
   min_master_version       = var.options.release_channel == "UNSPECIFIED" ? var.options.version : null
