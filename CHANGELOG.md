@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.0.2...v1.1.0) (2023-08-27)
+
+
+### Features
+
+* Options for public master endpoint and SNAT ([29c8043](https://github.com/memes/terraform-google-private-gke-cluster/commit/29c8043af1d344ebb8efbded7f7421b78f7d7aac))
+
+
+### Bug Fixes
+
+* Change default description for Autopilot ([45bc897](https://github.com/memes/terraform-google-private-gke-cluster/commit/45bc897dd7ed19eeeef7efeb14ded4754b87aacf))
+* Do not recreate Autopilot clusters ([2e394c1](https://github.com/memes/terraform-google-private-gke-cluster/commit/2e394c195dabce2e6e61b9af00807539b563df7f))
+* Update GKE SA roles ([7bb862e](https://github.com/memes/terraform-google-private-gke-cluster/commit/7bb862ed5b4b20497fc54d9efafda73242ff7431))
+* Use intended service account for Autopilot ([ff075db](https://github.com/memes/terraform-google-private-gke-cluster/commit/ff075db72ba0ed1ad04c34cc1e57d28f5be567a2))
+
 ## [1.0.2](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.0.1...v1.0.2) (2023-04-07)
 
 
