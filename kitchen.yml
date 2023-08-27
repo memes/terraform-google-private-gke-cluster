@@ -46,7 +46,9 @@ standard_options = {
   'workload_pool' => nil,
   'master_global_access' => true,
   'etcd_kms' => nil,
-  'max_pods_per_node' => 110
+  'max_pods_per_node' => 110,
+  'private_endpoint' => true,
+  'default_snat' => true
 }
 
 standard_pool = {
@@ -112,7 +114,9 @@ standard_autoscaling = {
 autopilot_options = {
   'release_channel' => 'STABLE',
   'master_global_access' => true,
-  'etcd_kms' => nil
+  'etcd_kms' => nil,
+  'private_endpoint' => true,
+  'default_snat' => true
 }
 
 autopilot_nap = {
@@ -215,6 +219,17 @@ platforms:
         autoscaling: '<%= hash_to_input_var(standard_autoscaling) %>'
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
+  - name: standard-pub
+    driver:
+      root_module_directory: test/fixtures/root
+      variables:
+        name: <%= "#{prefix}-std-pub" %>
+        description: Private GKE cluster with public endpoint
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.112/28")) %>'
+        node_pools: '{}'
+        options: '<%= hash_to_input_var(standard_options.merge({"private_endpoint" => false})) %>'
+        master_authorized_networks: '[]'
+        proxy_url: ''
   - name: autopilot-min
     driver:
       root_module_directory: test/fixtures/autopilot
@@ -233,6 +248,16 @@ platforms:
         nap: '<%= hash_to_input_var(autopilot_nap.merge({"tags" => ["#{prefix}-auto-nap"]})) %>'
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
+  - name: autopilot-pub
+    driver:
+      root_module_directory: test/fixtures/autopilot
+      variables:
+        name: <%= "#{prefix}-auto-pub" %>
+        description: Private Autopilot GKE with public endpoint
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.1.32/28")) %>'
+        options: '<%= hash_to_input_var(autopilot_options.merge({"private_endpoint" => false})) %>'
+        master_authorized_networks: '[]'
+        proxy_url: ''
   - name: sa-min
     driver:
       root_module_directory: test/fixtures/sa

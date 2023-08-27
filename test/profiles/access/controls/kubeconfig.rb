@@ -12,6 +12,6 @@ control 'kubeconfig' do
 
   describe command("kubectl --kubeconfig #{kubeconfig.path} version") do
     its('exit_status') { should eq 0 }
-    its('stdout') { should match(/Server Version:.*GitVersion:"v1\.[12][0-9]\.[1-9][0-9]+-gke\.[1-9][0-9]+"/m) }
+    its('stdout') { should match(/Server Version:.*v1\.[12][0-9]\.[0-9]+-gke\.[0-9]+/m) }
   end
 end

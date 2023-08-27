@@ -53,7 +53,7 @@ control 'node_pools' do
       else
         its('config.shielded_instance_config.enable_integrity_monitoring') { should be_nil }
       end
-      its('config.workload_meta_config.mode') { should be_nil }
+      its('config.workload_meta_config.mode') { should cmp 'GKE_METADATA' }
       its('status') { should cmp 'RUNNING' }
       its('initial_node_count') { should cmp expected[:min_nodes_per_zone] }
       if expected[:autoscaling]
