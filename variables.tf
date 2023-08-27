@@ -94,6 +94,8 @@ variable "options" {
     master_global_access = bool
     etcd_kms             = string
     max_pods_per_node    = number
+    private_endpoint     = bool
+    default_snat         = bool
   })
   default = {
     release_channel      = "STABLE"
@@ -102,10 +104,12 @@ variable "options" {
     master_global_access = true
     etcd_kms             = null
     max_pods_per_node    = 110
+    private_endpoint     = true
+    default_snat         = true
   }
   description = <<-EOD
   Defines the set of GKE options to use when provisioning the cluster. Default
-  values will create cluster from the STABLE release channel.
+  values will create cluster from the STABLE release channel with private RFC1918 endpoint.
   EOD
 }
 

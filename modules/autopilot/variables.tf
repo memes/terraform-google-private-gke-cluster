@@ -92,16 +92,20 @@ variable "options" {
     release_channel      = string
     master_global_access = bool
     etcd_kms             = string
+    private_endpoint     = bool
+    default_snat         = bool
   })
   default = {
     release_channel      = "STABLE"
     master_global_access = true
     etcd_kms             = null
+    private_endpoint     = true
+    default_snat         = true
   }
   description = <<-EOD
   Defines the set of GKE options to use when provisioning the cluster. Default
   values will initiate an Autopilot cluster from GKE's STABLE release channel,
-  with global flag enabled on the master access LB.
+  with global flag enabled on the master access LB, and private RFC1918 endpoint.
   EOD
 }
 

@@ -22,3 +22,6 @@ inputs:
   - name: output_endpoint_url
     type: string
     required: true
+  - name: output_public_endpoint_url
+    type: string
+    required: false

@@ -129,7 +129,7 @@ resource "google_container_cluster" "cluster" {
 
   private_cluster_config {
     enable_private_nodes    = true
-    enable_private_endpoint = true
+    enable_private_endpoint = try(var.options.private_endpoint, true) ? true : null
     master_ipv4_cidr_block  = var.subnet.master_cidr
     dynamic "master_global_access_config" {
       for_each = var.options.master_global_access ? [var.options.master_global_access] : []
@@ -152,7 +152,7 @@ resource "google_container_cluster" "cluster" {
   }
 
   default_snat_status {
-    disabled = true
+    disabled = !try(var.options.default_snat, true)
   }
 
   lifecycle {

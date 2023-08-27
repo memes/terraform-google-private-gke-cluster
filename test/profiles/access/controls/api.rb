@@ -9,6 +9,8 @@ control 'api' do
   impact 1.0
   proxy_url = input('input_proxy_url')
   endpoint_url = input('output_endpoint_url')
+  public_endpoint_url = input('output_public_endpoint_url')
+  endpoint_url = public_endpoint_url unless public_endpoint_url.nil? || public_endpoint_url.empty?
 
   ca_cert = Tempfile.new
   ca_cert.write(Base64.decode64(input('output_ca_cert')))

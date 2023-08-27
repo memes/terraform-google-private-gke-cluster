@@ -40,6 +40,8 @@ variable "options" {
     master_global_access = bool
     etcd_kms             = string
     max_pods_per_node    = number
+    private_endpoint     = bool
+    default_snat         = bool
   })
   default = {
     release_channel      = "STABLE"
@@ -48,6 +50,8 @@ variable "options" {
     master_global_access = true
     etcd_kms             = null
     max_pods_per_node    = 110
+    private_endpoint     = true
+    default_snat         = true
   }
 }
 

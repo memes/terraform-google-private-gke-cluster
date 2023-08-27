@@ -28,6 +28,6 @@ module "kubeconfig" {
   cluster_id           = module.test.id
   cluster_name         = var.name
   context_name         = var.name
-  use_private_endpoint = true
+  use_private_endpoint = try(var.options.private_endpoint, true)
   proxy_url            = var.proxy_url
 }

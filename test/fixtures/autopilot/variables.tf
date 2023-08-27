@@ -37,11 +37,15 @@ variable "options" {
     release_channel      = string
     master_global_access = bool
     etcd_kms             = string
+    private_endpoint     = bool
+    default_snat         = bool
   })
   default = {
     release_channel      = "STABLE"
     master_global_access = true
     etcd_kms             = null
+    private_endpoint     = true
+    default_snat         = true
   }
 }
 

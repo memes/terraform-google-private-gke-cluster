@@ -31,7 +31,11 @@ control 'cluster' do
     its('database_encryption.state') { should cmp options[:kms].nil? ? 'DECRYPTED' : 'ENCRYPTED' }
     its('database_encryption.key_name') { should cmp options[:kms] }
     its('private_cluster_config.enable_private_nodes') { should cmp true }
-    its('private_cluster_config.enable_private_endpoint') { should cmp true }
+    if options[:private_endpoint]
+      its('private_cluster_config.enable_private_endpoint') { should cmp true }
+    else
+      its('private_cluster_config.enable_private_endpoint') { should be_nil }
+    end
     its('private_cluster_config.master_ipv4_cidr_block') { should cmp subnet[:master_cidr] }
     its('private_cluster_config.private_endpoint') { should_not be_nil }
     its('enable_tpu') { should cmp(features[:tpu] ? true : nil) }
@@ -59,10 +63,12 @@ control 'cluster' do
     its('ip_allocation_policy.services_ipv4_cidr_block') { should_not be_nil }
     its('ip_allocation_policy.tpu_ipv4_cidr_block') { should be_nil }
     its('status') { should be_in %w[RUNNING RECONCILING] }
-    its('master_authorized_networks_config.enabled') { should cmp true }
-    its('master_authorized_networks_config.cidr_blocks.count') { should eq 1 }
-    its('master_authorized_networks_config.cidr_blocks.first.cidr_block') do
-      should cmp master_authorized_networks[0][:cidr_block]
+    if options[:private_endpoint]
+      its('master_authorized_networks_config.enabled') { should cmp true }
+      its('master_authorized_networks_config.cidr_blocks.count') { should eq 1 }
+      its('master_authorized_networks_config.cidr_blocks.first.cidr_block') do
+        should cmp master_authorized_networks[0][:cidr_block]
+      end
     end
     its('binary_authorization.enabled') { should cmp(features[:binary_authorization] ? true : nil) }
     if options[:release_channel] == 'UNSPECIFIED'

@@ -46,3 +46,14 @@ EOD
     google_container_cluster.cluster,
   ]
 }
+
+output "public_endpoint_url" {
+  sensitive   = true
+  value       = try(var.options.private_endpoint, true) ? null : format("https://%s", google_container_cluster.cluster.private_cluster_config.0.public_endpoint)
+  description = <<-EOD
+  The URL to use for master access.
+  EOD
+  depends_on = [
+    google_container_cluster.cluster,
+  ]
+}
