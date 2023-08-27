@@ -1,7 +1,0 @@
----
-name: private-gke
-depends:
-  - name: access
-    path: ../../profiles/access
-  - name: cluster
-    path: ../../profiles/cluster
