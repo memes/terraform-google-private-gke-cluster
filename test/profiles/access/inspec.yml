@@ -3,7 +3,7 @@
 name: access
 title: Verifies access to a private GKE cluster via proxy
 license: Apache-2.0
-version: 1.0.3
+version: 1.1.1
 supports:
   - platform-family: unix
   - platform-family: windows
