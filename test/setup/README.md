@@ -33,7 +33,7 @@ gcr_location = "EU"
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_google"></a> [google](#requirement\_google) | >= 4.42 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 4.42, <5 |
 | <a name="requirement_http"></a> [http](#requirement\_http) | >= 3.2 |
 | <a name="requirement_local"></a> [local](#requirement\_local) | >= 2.2 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.3 |
