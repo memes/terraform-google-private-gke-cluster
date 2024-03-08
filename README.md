@@ -34,7 +34,7 @@ This Terraform module creates a private regional GKE cluster:
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_google"></a> [google](#requirement\_google) | >= 4.42 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 4.42, <5 |
 
 ## Modules
 
