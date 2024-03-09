@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.1.0...v1.1.1) (2024-03-08)
+
+
+### Bug Fixes
+
+* Set upper limit on Google Terraform provider ([2228d88](https://github.com/memes/terraform-google-private-gke-cluster/commit/2228d88ca400f8afa0b39935945bf89a39c7f424)), closes [#52](https://github.com/memes/terraform-google-private-gke-cluster/issues/52)
+
 ## [1.1.0](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.0.2...v1.1.0) (2023-08-27)
 
 
