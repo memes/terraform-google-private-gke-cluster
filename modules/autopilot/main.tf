@@ -3,7 +3,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 4.42, <5"
+      version = ">= 5.21"
     }
   }
 }
@@ -35,6 +35,7 @@ resource "google_container_cluster" "cluster" {
   datapath_provider        = "ADVANCED_DATAPATH"
   logging_service          = "logging.googleapis.com/kubernetes"
   monitoring_service       = "monitoring.googleapis.com/kubernetes"
+  deletion_protection      = var.options.deletion_protection
 
   # These addons are required to be enabled for autopilot clusters
   addons_config {

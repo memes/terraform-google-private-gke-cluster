@@ -9,7 +9,7 @@ This Terraform module creates a private GKE Autopilot cluster.
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_google"></a> [google](#requirement\_google) | >= 4.42, <5 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.21 |
 
 ## Modules
 
@@ -36,7 +36,7 @@ No modules.
 | <a name="input_labels"></a> [labels](#input\_labels) | An optional set of key:value string pairs that will be added to the Autopilot<br>resources. | `map(string)` | `{}` | no |
 | <a name="input_maintenance"></a> [maintenance](#input\_maintenance) | Defines the times that GKE is permitted to perform automatic cluster maintenance. | <pre>object({<br>    start_time = string<br>    end_time   = string<br>    exclusions = list(object({<br>      name            = string<br>      start_time      = string<br>      end_time        = string<br>      exclusion_scope = string<br>    }))<br>    recurrence = string<br>  })</pre> | <pre>{<br>  "end_time": "",<br>  "exclusions": [],<br>  "recurrence": "",<br>  "start_time": "05:00"<br>}</pre> | no |
 | <a name="input_nap"></a> [nap](#input\_nap) | Configures cluster-scoped node auto-provisioning parameters for use with autopilot.<br>Currently, only network tags can be specified. | <pre>object({<br>    tags = list(string)<br>  })</pre> | `null` | no |
-| <a name="input_options"></a> [options](#input\_options) | Defines the set of GKE options to use when provisioning the cluster. Default<br>values will initiate an Autopilot cluster from GKE's STABLE release channel,<br>with global flag enabled on the master access LB, and private RFC1918 endpoint. | <pre>object({<br>    release_channel      = string<br>    master_global_access = bool<br>    etcd_kms             = string<br>    private_endpoint     = bool<br>    default_snat         = bool<br>  })</pre> | <pre>{<br>  "default_snat": true,<br>  "etcd_kms": null,<br>  "master_global_access": true,<br>  "private_endpoint": true,<br>  "release_channel": "STABLE"<br>}</pre> | no |
+| <a name="input_options"></a> [options](#input\_options) | Defines the set of GKE options to use when provisioning the cluster. Default<br>values will initiate an Autopilot cluster from GKE's STABLE release channel,<br>with global flag enabled on the master access LB, and private RFC1918 endpoint. | <pre>object({<br>    release_channel      = string<br>    master_global_access = bool<br>    etcd_kms             = string<br>    private_endpoint     = bool<br>    default_snat         = bool<br>    deletion_protection  = bool<br>  })</pre> | <pre>{<br>  "default_snat": true,<br>  "deletion_protection": false,<br>  "etcd_kms": null,<br>  "master_global_access": true,<br>  "private_endpoint": true,<br>  "release_channel": "STABLE"<br>}</pre> | no |
 
 ## Outputs
 
