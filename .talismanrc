@@ -24,3 +24,5 @@ fileignoreconfig:
   checksum: a19bd28edbf555a07b315b46ee7b73bf5298e350ddfaff8f8c124f80ef2be9be
 - filename: variables.tf
   checksum: 36566aafe932376e7256a1aa7017fc02b7203adc0d305aa975bf1a728e427fb9
+- filename: test/profiles/cluster/controls/cluster.rb
+  checksum: 3cce8abc8059b19fdae07d94f9ff774b487266d00e8431edb47e802c44d59af5
