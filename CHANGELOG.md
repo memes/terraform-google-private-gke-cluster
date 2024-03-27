@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.1.1...v2.0.0) (2024-03-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* The module requires Google provider v5.21+.
+
+### Bug Fixes
+
+* Allow cluster deletion by default ([ba0746d](https://github.com/memes/terraform-google-private-gke-cluster/commit/ba0746d4a5d91a173fae0c37493d3497c79902b6))
+
 ## [1.1.1](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.1.0...v1.1.1) (2024-03-08)
 
 
