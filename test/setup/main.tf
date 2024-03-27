@@ -3,7 +3,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 4.42, <5"
+      version = ">= 5.21"
     }
     http = {
       source  = "hashicorp/http"
@@ -59,7 +59,7 @@ locals {
 
 module "vpc" {
   source      = "memes/multi-region-private-network/google"
-  version     = "2.0.0"
+  version     = "2.1.0"
   project_id  = var.project_id
   name        = format("%s-test", local.prefix)
   description = format("test VPC network (%s)", local.prefix)
@@ -89,12 +89,13 @@ module "vpc" {
     flow_logs             = false
     ipv6_ula              = false
     nat_logs              = false
+    private_apis          = false
   }
 }
 
 module "restricted_apis_dns" {
   source             = "memes/restricted-apis-dns/google"
-  version            = "1.2.0"
+  version            = "1.3.0"
   project_id         = var.project_id
   name               = format("%s-restricted-apis", local.prefix)
   labels             = local.labels
@@ -106,11 +107,11 @@ module "restricted_apis_dns" {
 
 module "bastion" {
   source                = "memes/private-bastion/google"
-  version               = "2.3.5"
+  version               = "3.0.0"
   project_id            = var.project_id
-  prefix                = format("%s-test", local.prefix)
+  name                  = format("%s-test", local.prefix)
   external_ip           = true
-  proxy_container_image = "ghcr.io/memes/terraform-google-private-bastion/forward-proxy:2.3.5"
+  proxy_container_image = "ghcr.io/memes/terraform-google-private-bastion/forward-proxy:3.0.0"
   zone                  = random_shuffle.zones.result[0]
   subnet                = module.vpc.subnets_by_region[var.region].self_link
   labels                = local.labels
@@ -119,7 +120,6 @@ module "bastion" {
       "172.16.0.0/16",
     ]
     service_accounts = null
-    tags             = null
     priority         = 900
   }
   depends_on = [

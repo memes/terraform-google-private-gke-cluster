@@ -17,15 +17,15 @@ control 'node_pools' do
   end
 
   node_pools_matcher = /^(?:#{node_pools.keys.join('|')})-\d+$/
-  describe google_container_node_pools(project: project_id, location: location,
-                                       cluster_name: cluster_name).where(node_pool_name: node_pools_matcher) do
+  describe google_container_node_pools(project: project_id, location:,
+                                       cluster_name:).where(node_pool_name: node_pools_matcher) do
     its('count') { should eq node_pools.keys.count }
   end
-  google_container_node_pools(project: project_id, location: location,
-                              cluster_name: cluster_name).where(node_pool_name: node_pools_matcher).node_pool_names.each do |name| # rubocop:disable Layout/LineLength
+  google_container_node_pools(project: project_id, location:,
+                              cluster_name:).where(node_pool_name: node_pools_matcher).node_pool_names.each do |name|
     key = name.gsub(/-\d+$/, '')
     expected = node_pools[key.to_sym]
-    describe google_container_node_pool(project: project_id, location: location, cluster_name: cluster_name,
+    describe google_container_node_pool(project: project_id, location:, cluster_name:,
                                         nodepool_name: name) do
       it { should exist }
       its('config.machine_type') { should cmp expected[:machine_type] }
@@ -85,13 +85,13 @@ control 'nap_pools' do
   end
 
   expected = autoscaling[:nap]
-  describe google_container_node_pools(project: project_id, location: location,
-                                       cluster_name: cluster_name).where(node_pool_name: /^nap-e2-/) do
+  describe google_container_node_pools(project: project_id, location:,
+                                       cluster_name:).where(node_pool_name: /^nap-e2-/) do
     its('count') { should be_positive }
   end
-  google_container_node_pools(project: project_id, location: location,
-                              cluster_name: cluster_name).where(node_pool_name: /^nap-e2-/).node_pool_names.each do |name| # rubocop:disable Layout/LineLength
-    describe google_container_node_pool(project: project_id, location: location, cluster_name: cluster_name,
+  google_container_node_pools(project: project_id, location:,
+                              cluster_name:).where(node_pool_name: /^nap-e2-/).node_pool_names.each do |name|
+    describe google_container_node_pool(project: project_id, location:, cluster_name:,
                                         nodepool_name: name) do
       it { should exist }
       its('config.min_cpu_platform') do

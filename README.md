@@ -9,7 +9,7 @@ This Terraform module creates a private regional GKE cluster:
 * Default node pool will be deleted and a dedicated node pool will be created
 * All nodes and masters will have private IP addresses only
 * Access to master nodes will be restricted to addresses in the VPC network
-* Default node pool will be deleted
+* Cluster deletion prevention will be disabled
 * Options are opinionated; not all configurations are possible in this module.
 
 > NOTE: This module is deliberately restrictive compared to the
@@ -34,7 +34,7 @@ This Terraform module creates a private regional GKE cluster:
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_google"></a> [google](#requirement\_google) | >= 4.42, <5 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.21 |
 
 ## Modules
 
@@ -64,7 +64,7 @@ No modules.
 | <a name="input_features"></a> [features](#input\_features) | The set of features that will be enabled on the GKE cluster. | <pre>object({<br>    alpha                = bool<br>    binary_authorization = bool<br>    cloudrun             = bool<br>    confidential_nodes   = bool<br>    config_connector     = bool<br>    csi_filestore        = bool<br>    csi_gce_pd           = bool<br>    gke_backup           = bool<br>    hpa                  = bool<br>    identity_service     = bool<br>    intranode_visibility = bool<br>    istio                = bool<br>    kalm                 = bool<br>    l7_lb                = bool<br>    sandbox              = bool<br>    service_external_ips = bool<br>    shielded_nodes       = bool<br>    tpu                  = bool<br>    vpa                  = bool<br>  })</pre> | <pre>{<br>  "alpha": false,<br>  "binary_authorization": false,<br>  "cloudrun": false,<br>  "confidential_nodes": false,<br>  "config_connector": false,<br>  "csi_filestore": false,<br>  "csi_gce_pd": false,<br>  "gke_backup": false,<br>  "hpa": true,<br>  "identity_service": false,<br>  "intranode_visibility": false,<br>  "istio": false,<br>  "kalm": false,<br>  "l7_lb": true,<br>  "sandbox": false,<br>  "service_external_ips": false,<br>  "shielded_nodes": true,<br>  "tpu": false,<br>  "vpa": false<br>}</pre> | no |
 | <a name="input_labels"></a> [labels](#input\_labels) | An optional set of key:value string pairs that will be added on the | `map(string)` | `{}` | no |
 | <a name="input_maintenance"></a> [maintenance](#input\_maintenance) | Defines the times that GKE is permitted to perform automatic cluster maintenance. | <pre>object({<br>    start_time = string<br>    end_time   = string<br>    exclusions = list(object({<br>      name            = string<br>      start_time      = string<br>      end_time        = string<br>      exclusion_scope = string<br>    }))<br>    recurrence = string<br>  })</pre> | <pre>{<br>  "end_time": "",<br>  "exclusions": [],<br>  "recurrence": "",<br>  "start_time": "05:00"<br>}</pre> | no |
-| <a name="input_options"></a> [options](#input\_options) | Defines the set of GKE options to use when provisioning the cluster. Default<br>values will create cluster from the STABLE release channel with private RFC1918 endpoint. | <pre>object({<br>    release_channel      = string<br>    version              = string<br>    workload_pool        = string<br>    master_global_access = bool<br>    etcd_kms             = string<br>    max_pods_per_node    = number<br>    private_endpoint     = bool<br>    default_snat         = bool<br>  })</pre> | <pre>{<br>  "default_snat": true,<br>  "etcd_kms": null,<br>  "master_global_access": true,<br>  "max_pods_per_node": 110,<br>  "private_endpoint": true,<br>  "release_channel": "STABLE",<br>  "version": null,<br>  "workload_pool": null<br>}</pre> | no |
+| <a name="input_options"></a> [options](#input\_options) | Defines the set of GKE options to use when provisioning the cluster. Default<br>values will create cluster from the STABLE release channel with private RFC1918 endpoint. | <pre>object({<br>    release_channel      = string<br>    version              = string<br>    workload_pool        = string<br>    master_global_access = bool<br>    etcd_kms             = string<br>    max_pods_per_node    = number<br>    private_endpoint     = bool<br>    default_snat         = bool<br>    deletion_protection  = bool<br>  })</pre> | <pre>{<br>  "default_snat": true,<br>  "deletion_protection": false,<br>  "etcd_kms": null,<br>  "master_global_access": true,<br>  "max_pods_per_node": 110,<br>  "private_endpoint": true,<br>  "release_channel": "STABLE",<br>  "version": null,<br>  "workload_pool": null<br>}</pre> | no |
 
 ## Outputs
 

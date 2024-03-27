@@ -96,6 +96,7 @@ variable "options" {
     max_pods_per_node    = number
     private_endpoint     = bool
     default_snat         = bool
+    deletion_protection  = bool
   })
   default = {
     release_channel      = "STABLE"
@@ -106,6 +107,7 @@ variable "options" {
     max_pods_per_node    = 110
     private_endpoint     = true
     default_snat         = true
+    deletion_protection  = false
   }
   description = <<-EOD
   Defines the set of GKE options to use when provisioning the cluster. Default

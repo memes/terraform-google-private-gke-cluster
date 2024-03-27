@@ -33,7 +33,7 @@ gcr_location = "EU"
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_google"></a> [google](#requirement\_google) | >= 4.42, <5 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.21 |
 | <a name="requirement_http"></a> [http](#requirement\_http) | >= 3.2 |
 | <a name="requirement_local"></a> [local](#requirement\_local) | >= 2.2 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.3 |
@@ -42,9 +42,9 @@ gcr_location = "EU"
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_bastion"></a> [bastion](#module\_bastion) | memes/private-bastion/google | 2.3.5 |
-| <a name="module_restricted_apis_dns"></a> [restricted\_apis\_dns](#module\_restricted\_apis\_dns) | memes/restricted-apis-dns/google | 1.2.0 |
-| <a name="module_vpc"></a> [vpc](#module\_vpc) | memes/multi-region-private-network/google | 2.0.0 |
+| <a name="module_bastion"></a> [bastion](#module\_bastion) | memes/private-bastion/google | 3.0.0 |
+| <a name="module_restricted_apis_dns"></a> [restricted\_apis\_dns](#module\_restricted\_apis\_dns) | memes/restricted-apis-dns/google | 1.3.0 |
+| <a name="module_vpc"></a> [vpc](#module\_vpc) | memes/multi-region-private-network/google | 2.1.0 |
 
 ## Resources
 

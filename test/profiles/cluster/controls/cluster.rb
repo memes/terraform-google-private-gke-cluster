@@ -17,7 +17,7 @@ control 'cluster' do
                       'terraform_module' => is_autopilot ? 'private-gke-cluster_autopilot' : 'private-gke-cluster' }
                     .merge(JSON.parse(input('output_labels_json'), { symbolize_names: false }))
 
-  describe google_container_cluster(project: project_id, location: location, name: name) do
+  describe google_container_cluster(project: project_id, location:, name:) do
     it { should exist }
     its('name') { should cmp expected_name }
     its('initial_node_count') { should cmp(is_autopilot ? nil : 1) }
@@ -28,8 +28,8 @@ control 'cluster' do
     its('master_auth.client_key') { should be_nil }
     its('logging_service') { should cmp 'logging.googleapis.com/kubernetes' }
     its('monitoring_service') { should cmp 'monitoring.googleapis.com/kubernetes' }
-    its('database_encryption.state') { should cmp options[:kms].nil? ? 'DECRYPTED' : 'ENCRYPTED' }
-    its('database_encryption.key_name') { should cmp options[:kms] }
+    its('database_encryption.state') { should cmp options[:etcd_kms].nil? ? 'DECRYPTED' : 'ENCRYPTED' }
+    its('database_encryption.key_name') { should cmp options[:etcd_kms] }
     its('private_cluster_config.enable_private_nodes') { should cmp true }
     if options[:private_endpoint]
       its('private_cluster_config.enable_private_endpoint') { should cmp true }

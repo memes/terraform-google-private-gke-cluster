@@ -48,7 +48,8 @@ standard_options = {
   'etcd_kms' => nil,
   'max_pods_per_node' => 110,
   'private_endpoint' => true,
-  'default_snat' => true
+  'default_snat' => true,
+  'deletion_protection' => false
 }
 
 standard_pool = {
@@ -116,7 +117,8 @@ autopilot_options = {
   'master_global_access' => true,
   'etcd_kms' => nil,
   'private_endpoint' => true,
-  'default_snat' => true
+  'default_snat' => true,
+  'deletion_protection' => false
 }
 
 autopilot_nap = {
@@ -132,10 +134,13 @@ subnet_with_master = lambda { |cidr| harness_outputs['subnet_template'].merge({'
 ---
 driver:
   name: terraform
-  command_timeout: 1800
   verify_version: true
   variables:
     project_id: <%= harness_outputs['project_id'] %>
+
+transport:
+  name: terraform
+  command_timeout: 3600
 
 provisioner:
   name: terraform
@@ -146,8 +151,9 @@ verifier:
 
 platforms:
   - name: standard-min
-    driver:
+    transport:
       root_module_directory: test/fixtures/root
+    driver:
       variables:
         name: <%= "#{prefix}-std-min" %>
         subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.0/28")) %>'
@@ -155,8 +161,9 @@ platforms:
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: standard-fixed-pool-stable
-    driver:
+    transport:
       root_module_directory: test/fixtures/root
+    driver:
       variables:
         name: <%= "#{prefix}-std-fixed-stable" %>
         description: Private GKE stable release test with fixed pool
@@ -165,8 +172,9 @@ platforms:
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: standard-fixed-version
-    driver:
+    transport:
       root_module_directory: test/fixtures/root
+    driver:
       variables:
         name: <%= "#{prefix}-std-fixed-ver" %>
         description: Private GKE v1.25 test with fixed pool
@@ -176,8 +184,9 @@ platforms:
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: standard-autoscaling-pool-stable
-    driver:
+    transport:
       root_module_directory: test/fixtures/root
+    driver:
       variables:
         name: <%= "#{prefix}-std-as-stable" %>
         description: Private GKE stable release test with declared autoscaling pool
@@ -186,8 +195,9 @@ platforms:
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: standard-autoscaling-pool-version
-    driver:
+    transport:
       root_module_directory: test/fixtures/root
+    driver:
       variables:
         name: <%= "#{prefix}-std-as-ver" %>
         description: Private GKE v1.25 test with declared autoscaling pool
@@ -197,8 +207,9 @@ platforms:
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: standard-nap-stable
-    driver:
+    transport:
       root_module_directory: test/fixtures/root
+    driver:
       variables:
         name: <%= "#{prefix}-std-nap-stable" %>
         description: Private GKE stable release test with auto-provisioned node pool
@@ -208,8 +219,9 @@ platforms:
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: standard-nap-version
-    driver:
+    transport:
       root_module_directory: test/fixtures/root
+    driver:
       variables:
         name: <%= "#{prefix}-std-nap-ver" %>
         description: Private GKE v1.25 test with auto-provisioned node pool
@@ -220,8 +232,9 @@ platforms:
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: standard-pub
-    driver:
+    transport:
       root_module_directory: test/fixtures/root
+    driver:
       variables:
         name: <%= "#{prefix}-std-pub" %>
         description: Private GKE cluster with public endpoint
@@ -231,16 +244,18 @@ platforms:
         master_authorized_networks: '[]'
         proxy_url: ''
   - name: autopilot-min
-    driver:
+    transport:
       root_module_directory: test/fixtures/autopilot
+    driver:
       variables:
         name: <%= "#{prefix}-auto-min" %>
         subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.1.0/28")) %>'
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: autopilot-nap
-    driver:
+    transport:
       root_module_directory: test/fixtures/autopilot
+    driver:
       variables:
         name: <%= "#{prefix}-auto-nap" %>
         description: Private Autopilot GKE with node auto-provisioning config
@@ -249,8 +264,9 @@ platforms:
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: autopilot-pub
-    driver:
+    transport:
       root_module_directory: test/fixtures/autopilot
+    driver:
       variables:
         name: <%= "#{prefix}-auto-pub" %>
         description: Private Autopilot GKE with public endpoint
@@ -259,13 +275,15 @@ platforms:
         master_authorized_networks: '[]'
         proxy_url: ''
   - name: sa-min
-    driver:
+    transport:
       root_module_directory: test/fixtures/sa
+    driver:
       variables:
         name: <%= "#{prefix}-sa-min" %>
   - name: sa-name-description
-    driver:
+    transport:
       root_module_directory: test/fixtures/sa
+    driver:
       variables:
         name: <%= "#{prefix}-sa-nm-desc" %>
         display_name: A kitchen test account
@@ -273,22 +291,25 @@ platforms:
           A test account provisioned by test-kitchen, kitchen-terraform, just
           for unit testing purposes
   - name: sa-gcr
-    driver:
+    transport:
       root_module_directory: test/fixtures/sa
+    driver:
       variables:
         name: <%= "#{prefix}-sa-gcr" %>
         display_name: A kitchen test account with GCR access
         repositories: '<%= "[\\\"#{harness_outputs['gcr_repo']}\\\"]" %>'
   - name: sa-gar
-    driver:
+    transport:
       root_module_directory: test/fixtures/sa
+    driver:
       variables:
         name: <%= "#{prefix}-sa-gar" %>
         display_name: A kitchen test account with GAR access
         repositories: '<%= "[\\\"#{harness_outputs['gar_repo']}\\\"]" %>'
   - name: sa-full
-    driver:
+    transport:
       root_module_directory: test/fixtures/sa
+    driver:
       variables:
         name: <%= "#{prefix}-sa-full" %>
         display_name: A kitchen test account with GCR and GAR access

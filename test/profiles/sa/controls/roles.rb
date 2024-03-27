@@ -8,7 +8,7 @@ control 'project' do
 
   %w[roles/logging.logWriter roles/monitoring.metricWriter roles/monitoring.viewer
      roles/stackdriver.resourceMetadata.writer].each do |role|
-    describe google_project_iam_binding(project: project_id, role: role) do
+    describe google_project_iam_binding(project: project_id, role:) do
       it { should exist }
       its('members') { should include member }
     end
@@ -32,7 +32,7 @@ control 'gcr_role' do
     # on it.
     repo_params = repo.match(%r{^(?<location>[^.]+\.)?gcr.io/(?<name>[^/]+)}).named_captures
     bucket = "#{repo_params['location']}artifacts.#{repo_params['name']}.appspot.com"
-    describe google_storage_bucket_iam_binding(bucket: bucket, role: 'roles/storage.objectViewer') do
+    describe google_storage_bucket_iam_binding(bucket:, role: 'roles/storage.objectViewer') do
       it { should exist }
       its('members') { should include member }
     end

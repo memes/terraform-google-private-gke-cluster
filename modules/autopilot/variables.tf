@@ -94,6 +94,7 @@ variable "options" {
     etcd_kms             = string
     private_endpoint     = bool
     default_snat         = bool
+    deletion_protection  = bool
   })
   default = {
     release_channel      = "STABLE"
@@ -101,6 +102,7 @@ variable "options" {
     etcd_kms             = null
     private_endpoint     = true
     default_snat         = true
+    deletion_protection  = false
   }
   description = <<-EOD
   Defines the set of GKE options to use when provisioning the cluster. Default
