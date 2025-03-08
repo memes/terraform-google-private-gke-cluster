@@ -27,7 +27,7 @@ gcr_location = "EU"
 ```
 
 <!-- markdownlint-disable no-inline-html no-bare-urls -->
-<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+<!-- BEGIN_TF_DOCS -->
 ## Requirements
 
 | Name | Version |
@@ -80,5 +80,5 @@ gcr_location = "EU"
 | <a name="output_prefix"></a> [prefix](#output\_prefix) | n/a |
 | <a name="output_project_id"></a> [project\_id](#output\_project\_id) | n/a |
 | <a name="output_subnet_template"></a> [subnet\_template](#output\_subnet\_template) | n/a |
-<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+<!-- END_TF_DOCS -->
 <!-- markdownlint-enable no-inline-html no-bare-urls -->
