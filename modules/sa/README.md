@@ -8,7 +8,7 @@ GCR and/or Artifact Registry repositories.
 > create a service account with more flexible role assignments, etc.
 
 <!-- markdownlint-disable MD033 MD034-->
-<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+<!-- BEGIN_TF_DOCS -->
 ## Requirements
 
 | Name | Version |
@@ -35,9 +35,9 @@ No modules.
 |------|-------------|------|---------|:--------:|
 | <a name="input_name"></a> [name](#input\_name) | The name to give to the service account. | `string` | n/a | yes |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | The GCP project identifier where the private GKE cluster will be created. | `string` | n/a | yes |
-| <a name="input_description"></a> [description](#input\_description) | An optional description to apply to the generated service account. The default<br>value describes the purpose of the service account. | `string` | `"A Terraform generated Service Account suitable for use by GKE nodes. The service\naccount is intended to have minimal roles required to log and report base\nmetrics to Google Cloud Operations.\n"` | no |
-| <a name="input_display_name"></a> [display\_name](#input\_display\_name) | An optional display name to associate with the generated service account. Default<br>is 'Generated GKE Service Account'. | `string` | `"Generated GKE Service Account"` | no |
-| <a name="input_repositories"></a> [repositories](#input\_repositories) | An optional list of GCR and/or GAR repositories. If provided, the generated<br>service account will be given the appropriate GCR or GAR read-only access role<br>to the repos. | `list(string)` | `[]` | no |
+| <a name="input_description"></a> [description](#input\_description) | An optional description to apply to the generated service account. The default<br/>value describes the purpose of the service account. | `string` | `"A Terraform generated Service Account suitable for use by GKE nodes. The service\naccount is intended to have minimal roles required to log and report base\nmetrics to Google Cloud Operations.\n"` | no |
+| <a name="input_display_name"></a> [display\_name](#input\_display\_name) | An optional display name to associate with the generated service account. Default<br/>is 'Generated GKE Service Account'. | `string` | `"Generated GKE Service Account"` | no |
+| <a name="input_repositories"></a> [repositories](#input\_repositories) | An optional list of GCR and/or GAR repositories. If provided, the generated<br/>service account will be given the appropriate GCR or GAR read-only access role<br/>to the repos. | `list(string)` | `[]` | no |
 
 ## Outputs
 
@@ -45,8 +45,8 @@ No modules.
 |------|-------------|
 | <a name="output_email"></a> [email](#output\_email) | The email address of the service account. |
 | <a name="output_id"></a> [id](#output\_id) | The fully-qualified service account identifier. |
-| <a name="output_member"></a> [member](#output\_member) | The service account identity for use with IAM declarations. E.g. `serviceAccount:email`<br>where email is the value of output `email`. |
-<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+| <a name="output_member"></a> [member](#output\_member) | The service account identity for use with IAM declarations. E.g. `serviceAccount:email`<br/>where email is the value of output `email`. |
+<!-- END_TF_DOCS -->
 <!-- markdownlint-enable MD033 MD034 -->
 
 [Service Account module]: https://registry.terraform.io/modules/terraform-google-modules/service-accounts/google/latest
