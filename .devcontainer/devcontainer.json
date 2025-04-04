@@ -6,7 +6,9 @@
             "version": "3.3.6"
         },
         "ghcr.io/memes/devcontainers-features/direnv:1": {},
-        "ghcr.io/memes/devcontainers-features/google-cloud-cli:1": {},
+        "ghcr.io/memes/devcontainers-features/google-cloud-cli:1": {
+            "components": "kubectl gke-gcloud-auth-plugin"
+        },
         "ghcr.io/memes/devcontainers-features/hashicorp:1": {
             "terraform": "1.5.5"
         },
