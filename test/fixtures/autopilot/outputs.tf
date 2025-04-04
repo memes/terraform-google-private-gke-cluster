@@ -34,7 +34,7 @@ output "kubeconfig" {
   value     = module.kubeconfig.kubeconfig
 }
 
-# Re-ouput some complex inputs as JSON, for easier parsing in controls
+# Re-output some complex inputs as JSON, for easier parsing in controls
 output "subnet_json" {
   value = jsonencode(var.subnet)
 }

@@ -26,6 +26,6 @@ control 'api' do
                                              ssl: { ca_file: ca_cert.path },
                                              proxy: proxy_url) do
     its('status') { should eq 200 }
-    its('body') { should match(/"gitVersion": "v1\.[12][0-9]\.[0-9]+-gke\.[0-9]+"/) }
+    its('body') { should match(/"gitVersion": "v1\.[123][0-9]\.[0-9]+-gke\.[0-9]+"/) }
   end
 end

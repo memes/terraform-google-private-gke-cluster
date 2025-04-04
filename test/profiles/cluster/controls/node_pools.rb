@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 # rubocop:disable Metrics/BlockLength
 control 'node_pools' do
   title 'Ensure GKE node pools meet expectations'
