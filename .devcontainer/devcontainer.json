@@ -7,6 +7,9 @@
         },
         "ghcr.io/memes/devcontainers-features/direnv:1": {},
         "ghcr.io/memes/devcontainers-features/google-cloud-cli:1": {},
+        "ghcr.io/memes/devcontainers-features/hashicorp:1": {
+            "terraform": "1.5.5"
+        },
         "ghcr.io/memes/devcontainers-features/opentofu:1": {
             "version": "1.9.0"
         },
