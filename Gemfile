@@ -9,7 +9,7 @@ gem 'kitchen-terraform', '~> 7.0.2'
 # See https://github.com/inspec/inspec-gcp/issues/596
 gem 'nori', '~> 2.6.0'
 group :dev do
-  gem 'reek', '~> 6.4.0', require: false
+  gem 'reek', '~> 6.5.0', require: false
   # transitive dependency via cookstyle forces rubocop 1.25
   # gem 'rubocop', '~> 1.62.1', require: false
 end
