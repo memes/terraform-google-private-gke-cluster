@@ -28,7 +28,7 @@ resource "google_container_cluster" "cluster" {
   remove_default_node_pool    = true
   networking_mode             = "VPC_NATIVE"
   network                     = data.google_compute_subnetwork.subnet.network
-  resource_labels             = var.labels
+  resource_labels             = merge({ cluster_name = var.name }, var.labels)
   subnetwork                  = data.google_compute_subnetwork.subnet.self_link
   enable_intranode_visibility = var.features.intranode_visibility
   enable_l4_ilb_subsetting    = var.features.l7_lb # Always enable if HTTP LB option is set
@@ -304,7 +304,8 @@ resource "google_container_node_pool" "pools" {
     disk_type    = each.value.disk_type
     image_type   = each.value.image_type
     labels = merge({
-      node_pool = each.key
+      node_pool    = each.key
+      cluster_name = var.name
     }, var.labels, each.value.labels)
     local_ssd_count = each.value.local_ssd_count
     machine_type    = each.value.machine_type

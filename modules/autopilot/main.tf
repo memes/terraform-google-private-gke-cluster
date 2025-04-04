@@ -22,7 +22,7 @@ resource "google_container_cluster" "cluster" {
   min_master_version       = var.options.release_channel == "UNSPECIFIED" ? var.options.version : null
   networking_mode          = "VPC_NATIVE"
   network                  = data.google_compute_subnetwork.subnet.network
-  resource_labels          = var.labels
+  resource_labels          = merge({ cluster_name = var.name }, var.labels)
   subnetwork               = data.google_compute_subnetwork.subnet.self_link
   enable_l4_ilb_subsetting = true
   datapath_provider        = "ADVANCED_DATAPATH"
