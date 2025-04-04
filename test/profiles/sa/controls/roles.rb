@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 control 'project' do
   title 'Ensure GKE service account has appropriate roles on the project'
   impact 1.0

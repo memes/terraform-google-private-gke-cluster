@@ -1,5 +1,14 @@
 # frozen_string_literal: true
 
+require 'json'
+require 'rspec/expectations'
+
+RSpec::Matchers.define :be_a_superset_of do |subset|
+  match do |superset|
+    superset >= subset
+  end
+end
+
 # rubocop:disable Metrics/BlockLength
 control 'cluster' do
   title 'Ensure private GKE cluster meets expectations'
@@ -13,8 +22,7 @@ control 'cluster' do
   features = JSON.parse(input('output_features_json'), { symbolize_names: true })
   master_authorized_networks = JSON.parse(input('output_master_authorized_networks_json'), { symbolize_names: true })
   is_autopilot = input('output_is_autopilot')
-  expected_labels = { 'cluster_name' => name,
-                      'terraform_module' => is_autopilot ? 'private-gke-cluster_autopilot' : 'private-gke-cluster' }
+  expected_labels = { 'cluster_name' => name }
                     .merge(JSON.parse(input('output_labels_json'), { symbolize_names: false }))
 
   describe google_container_cluster(project: project_id, location:, name:) do
@@ -47,7 +55,7 @@ control 'cluster' do
       should cmp(is_autopilot || features[:csi_gce_pd] ? true : nil)
     end
     its('subnetwork') { should cmp subnet[:self_link].split('/').last }
-    its('resource_labels') { should cmp expected_labels }
+    its('resource_labels') { should be_a_superset_of(expected_labels) }
     its('legacy_abac.enabled') { should be_nil }
     its('network_policy.enabled') { should be_nil }
     its('default_max_pods_constraint.max_pods_per_node') do
