@@ -1,22 +1,15 @@
 terraform {
-  required_version = ">= 1.2"
+  required_version = ">= 1.5"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 5.21"
+      version = ">= 6.27"
     }
   }
 }
 
 data "google_compute_subnetwork" "subnet" {
   self_link = var.subnet.self_link
-}
-
-locals {
-  labels = merge({
-    cluster_name     = var.name
-    terraform_module = "private-gke-cluster"
-  }, var.labels)
 }
 
 resource "google_container_cluster" "cluster" {
@@ -35,7 +28,7 @@ resource "google_container_cluster" "cluster" {
   remove_default_node_pool    = true
   networking_mode             = "VPC_NATIVE"
   network                     = data.google_compute_subnetwork.subnet.network
-  resource_labels             = local.labels
+  resource_labels             = var.labels
   subnetwork                  = data.google_compute_subnetwork.subnet.self_link
   enable_intranode_visibility = var.features.intranode_visibility
   enable_l4_ilb_subsetting    = var.features.l7_lb # Always enable if HTTP LB option is set
@@ -143,7 +136,7 @@ resource "google_container_cluster" "cluster" {
     enabled = var.features.service_external_ips
   }
 
-  # TODO - keep/refiine?
+  # TODO - keep/refine?
   mesh_certificates {
     enable_certificates = true
   }
@@ -312,7 +305,7 @@ resource "google_container_node_pool" "pools" {
     image_type   = each.value.image_type
     labels = merge({
       node_pool = each.key
-    }, local.labels, each.value.labels)
+    }, var.labels, each.value.labels)
     local_ssd_count = each.value.local_ssd_count
     machine_type    = each.value.machine_type
     metadata = merge({

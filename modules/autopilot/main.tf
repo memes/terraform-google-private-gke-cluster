@@ -1,22 +1,15 @@
 terraform {
-  required_version = ">= 1.2"
+  required_version = ">= 1.5"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 5.21"
+      version = ">= 6.27"
     }
   }
 }
 
 data "google_compute_subnetwork" "subnet" {
   self_link = var.subnet.self_link
-}
-
-locals {
-  labels = merge({
-    cluster_name     = var.name
-    terraform_module = "private-gke-cluster_autopilot"
-  }, var.labels)
 }
 
 resource "google_container_cluster" "cluster" {
@@ -29,7 +22,7 @@ resource "google_container_cluster" "cluster" {
   min_master_version       = var.options.release_channel == "UNSPECIFIED" ? var.options.version : null
   networking_mode          = "VPC_NATIVE"
   network                  = data.google_compute_subnetwork.subnet.network
-  resource_labels          = local.labels
+  resource_labels          = var.labels
   subnetwork               = data.google_compute_subnetwork.subnet.self_link
   enable_l4_ilb_subsetting = true
   datapath_provider        = "ADVANCED_DATAPATH"

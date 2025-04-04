@@ -1,21 +1,21 @@
 terraform {
-  required_version = ">= 1.2"
+  required_version = ">= 1.5"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 5.21"
+      version = ">= 6.27"
     }
     http = {
       source  = "hashicorp/http"
-      version = ">= 3.2"
+      version = ">= 3.4"
     }
     local = {
       source  = "hashicorp/local"
-      version = ">= 2.2"
+      version = ">= 2.5"
     }
     random = {
       source  = "hashicorp/random"
-      version = ">= 3.3"
+      version = ">= 3.7"
     }
   }
 }
