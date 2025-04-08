@@ -157,6 +157,16 @@ variable "node_pools" {
       effect = string
     }))
     tags = list(string)
+    gpus = list(object({
+      type           = string
+      count          = number
+      install_driver = bool
+      driver_version = string
+      sharing = object({
+        strategy    = string
+        max_clients = number
+      })
+    }))
   }))
 }
 

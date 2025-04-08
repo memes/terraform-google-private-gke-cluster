@@ -369,6 +369,28 @@ resource "google_container_node_pool" "pools" {
         sysctls = linux_node_config.value
       }
     }
+
+    dynamic "guest_accelerator" {
+      for_each = try(length(each.value.gpus), 0) > 0 ? {} : {}
+      content {
+        type  = guest_accelerator.value.type
+        count = try(guest_accelerator.value.count, 0)
+        dynamic "gpu_driver_installation_config" {
+          for_each = try(guest_accelerator.value.install_driver, false) ? { version = coalesce(guest_accelerator.value.driver_version, "GPU_DRIVER_VERSION_UNSPECIFIED") } : {}
+          content {
+            gpu_driver_version = gpu_driver_installation_config.value
+          }
+        }
+        # gpu_partition_size = XXX
+        dynamic "gpu_sharing_config" {
+          for_each = try(guest_accelerator.value.sharing, null) != null ? { sharing = guest_accelerator.value.sharing } : {}
+          content {
+            gpu_sharing_strategy       = coalesce(try(gpu_sharing_config.value.strategy, null), "TIME_SHARING")
+            max_shared_clients_per_gpu = gpu_sharing_config.value.max_clients
+          }
+        }
+      }
+    }
   }
 
   upgrade_settings {
