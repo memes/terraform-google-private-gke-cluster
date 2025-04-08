@@ -35,8 +35,8 @@ variable "use_private_endpoint" {
   default     = true
   description = <<-EOD
   Flag to trigger use of private IP address of master as the endpoint for the
-  generated kubeconf. Default is true; if set to false the master public IP will
-  be used if possible.
+  generated kubeconfig. Default is true; if set to false the master public IP
+  will be used if possible.
   EOD
 }
 

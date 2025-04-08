@@ -17,7 +17,7 @@ fileignoreconfig:
 - filename: modules/autopilot/main.tf
   checksum: e7954bf85b328ea69af82f03e013a03802e7125ba2cba85f13cf9043857ccd9a
 - filename: README.md
-  checksum: 21bdcf6c5fdb01415318ef34c0dde49b1e1a9e584e6714df8a9f6710d0ebddea
+  checksum: 0989aa3f5525217ef695bb5f1ba67eb706ef7738f0757cc2792cb6e5ad002748
 - filename: main.tf
   checksum: 1072aa4fd337ec8bacc9e6e720e58f1a19915294f9e7c89f71890bf7f247f0e8
 - filename: test/integration/private-gke/controls/node_pools.rb

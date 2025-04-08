@@ -1,22 +1,15 @@
 terraform {
-  required_version = ">= 1.2"
+  required_version = ">= 1.5"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 5.21"
+      version = ">= 6.27"
     }
   }
 }
 
 data "google_compute_subnetwork" "subnet" {
   self_link = var.subnet.self_link
-}
-
-locals {
-  labels = merge({
-    cluster_name     = var.name
-    terraform_module = "private-gke-cluster"
-  }, var.labels)
 }
 
 resource "google_container_cluster" "cluster" {
@@ -35,7 +28,7 @@ resource "google_container_cluster" "cluster" {
   remove_default_node_pool    = true
   networking_mode             = "VPC_NATIVE"
   network                     = data.google_compute_subnetwork.subnet.network
-  resource_labels             = local.labels
+  resource_labels             = merge({ cluster_name = var.name }, var.labels)
   subnetwork                  = data.google_compute_subnetwork.subnet.self_link
   enable_intranode_visibility = var.features.intranode_visibility
   enable_l4_ilb_subsetting    = var.features.l7_lb # Always enable if HTTP LB option is set
@@ -143,7 +136,7 @@ resource "google_container_cluster" "cluster" {
     enabled = var.features.service_external_ips
   }
 
-  # TODO - keep/refiine?
+  # TODO - keep/refine?
   mesh_certificates {
     enable_certificates = true
   }
@@ -311,8 +304,9 @@ resource "google_container_node_pool" "pools" {
     disk_type    = each.value.disk_type
     image_type   = each.value.image_type
     labels = merge({
-      node_pool = each.key
-    }, local.labels, each.value.labels)
+      node_pool    = each.key
+      cluster_name = var.name
+    }, var.labels, each.value.labels)
     local_ssd_count = each.value.local_ssd_count
     machine_type    = each.value.machine_type
     metadata = merge({
@@ -373,6 +367,28 @@ resource "google_container_node_pool" "pools" {
       for_each = try(length(each.value.sysctls), 0) > 0 ? [each.value.sysctls] : []
       content {
         sysctls = linux_node_config.value
+      }
+    }
+
+    dynamic "guest_accelerator" {
+      for_each = try(length(each.value.gpus), 0) > 0 ? {} : {}
+      content {
+        type  = guest_accelerator.value.type
+        count = try(guest_accelerator.value.count, 0)
+        dynamic "gpu_driver_installation_config" {
+          for_each = try(guest_accelerator.value.install_driver, false) ? { version = coalesce(guest_accelerator.value.driver_version, "GPU_DRIVER_VERSION_UNSPECIFIED") } : {}
+          content {
+            gpu_driver_version = gpu_driver_installation_config.value
+          }
+        }
+        # gpu_partition_size = XXX
+        dynamic "gpu_sharing_config" {
+          for_each = try(guest_accelerator.value.sharing, null) != null ? { sharing = guest_accelerator.value.sharing } : {}
+          content {
+            gpu_sharing_strategy       = coalesce(try(gpu_sharing_config.value.strategy, null), "TIME_SHARING")
+            max_shared_clients_per_gpu = gpu_sharing_config.value.max_clients
+          }
+        }
       }
     }
   }

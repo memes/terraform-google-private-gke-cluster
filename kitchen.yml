@@ -81,7 +81,8 @@ standard_pool = {
   'metadata' => nil,
   'sysctls' => nil,
   'taints' => nil,
-  'tags' => nil
+  'tags' => nil,
+  'gpus' => nil
 }
 
 standard_autoscaling = {
@@ -243,6 +244,16 @@ platforms:
         options: '<%= hash_to_input_var(standard_options.merge({"private_endpoint" => false})) %>'
         master_authorized_networks: '[]'
         proxy_url: ''
+  - name: standard-gpu
+    transport:
+      root_module_directory: test/fixtures/root
+    driver:
+      variables:
+        name: <%= "#{prefix}-std-gpu" %>
+        subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.124.0/28")) %>'
+        node_pools: '{gpu=<%= hash_to_input_var(standard_pool.merge({"machine_type" => "a2-highgpu-1g", "gpus" => [{"type"=> "nvidia-tesla-a100", "count" => 1, "install_driver" => false, "driver_version" => nil, "sharing" => nil}]})) %>}'
+        master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
+        proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: autopilot-min
     transport:
       root_module_directory: test/fixtures/autopilot
