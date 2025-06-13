@@ -8,8 +8,7 @@ control 'project' do
   project_id = input('input_project_id')
   member = input('output_member')
 
-  %w[roles/logging.logWriter roles/monitoring.metricWriter roles/monitoring.viewer
-     roles/stackdriver.resourceMetadata.writer].each do |role|
+  %w[roles/container.defaultNodeServiceAccount roles/stackdriver.resourceMetadata.writer].each do |role|
     describe google_project_iam_binding(project: project_id, role:) do
       it { should exist }
       its('members') { should include member }
