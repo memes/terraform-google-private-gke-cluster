@@ -100,17 +100,21 @@ realclean: clean
 # if all those pass indicate success
 .PHONY: pre-release.%
 pre-release.%:
-	@echo '$*' | grep -Eq '^v(?:[0-9]+\.){2}[0-9]+$$' || \
+	@echo '$*' | grep -Eq '^v([0-9]+\.){2}[0-9]+$$' || \
 		(echo "Tag doesn't meet requirements"; exit 1)
-	@test "$(shell git status --porcelain | wc -l | grep -Eo '[0-9]+')" == "0" || \
+	@test "$(shell git status --porcelain | wc -l | grep -Eo '[0-9]+')" -eq 0 || \
 		(echo "Git tree is unclean"; exit 1)
-	@find examples -type f -name main.tf -print0 | \
+	@test -d examples && \
+	    find examples -type f -name main.tf -print0 | \
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "cluster"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
-	@find examples -type f -name main.tf -print0 | \
+	@test -d examples && \
+	    find examples -type f -name main.tf -print0 | \
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "autopilot"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/autopilot/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
-	@find examples -type f -name main.tf -print0 | \
+	@test -d examples && \
+	    find examples -type f -name main.tf -print0 | \
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "kubeconfig"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/kubeconfig/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
-	@find examples -type f -name main.tf -print0 | \
+	@test -d examples && \
+	    find examples -type f -name main.tf -print0 | \
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "sa"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/sa/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
 	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/access/inspec.yml || \
 		(echo "test/profiles/access/inspec.yml has incorrect tag"; exit 1)
