@@ -178,10 +178,10 @@ platforms:
     driver:
       variables:
         name: <%= "#{prefix}-std-fixed-ver" %>
-        description: Private GKE v1.25 test with fixed pool
+        description: Private GKE v1.31 test with fixed pool
         subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.32/28")) %>'
         node_pools: '{fixed-ver=<%= hash_to_input_var(standard_pool) %>}'
-        options: '<%= hash_to_input_var(standard_options.merge({"release_channel" => "UNSPECIFIED", "version" => "1.25"})) %>'
+        options: '<%= hash_to_input_var(standard_options.merge({"release_channel" => "UNSPECIFIED", "version" => "1.31"})) %>'
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: standard-autoscaling-pool-stable
@@ -201,10 +201,10 @@ platforms:
     driver:
       variables:
         name: <%= "#{prefix}-std-as-ver" %>
-        description: Private GKE v1.25 test with declared autoscaling pool
+        description: Private GKE v1.31 test with declared autoscaling pool
         subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.64/28")) %>'
         node_pools: '{as-ver=<%= hash_to_input_var(standard_pool.merge({"autoscaling" => true, "location_policy" => "BALANCED", "max_nodes" => 6})) %>}'
-        options: '<%= hash_to_input_var(standard_options.merge({"release_channel" => "UNSPECIFIED", "version" => "1.25"})) %>'
+        options: '<%= hash_to_input_var(standard_options.merge({"release_channel" => "UNSPECIFIED", "version" => "1.31"})) %>'
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>
   - name: standard-nap-stable
@@ -225,10 +225,10 @@ platforms:
     driver:
       variables:
         name: <%= "#{prefix}-std-nap-ver" %>
-        description: Private GKE v1.25 test with auto-provisioned node pool
+        description: Private GKE v1.31 test with auto-provisioned node pool
         subnet: '<%= hash_to_input_var(subnet_with_master.call("192.168.0.96/28")) %>'
         node_pools: '{}'
-        options: '<%= hash_to_input_var(standard_options.merge({"release_channel" => "UNSPECIFIED", "version" => "1.25"})) %>'
+        options: '<%= hash_to_input_var(standard_options.merge({"release_channel" => "UNSPECIFIED", "version" => "1.31"})) %>'
         autoscaling: '<%= hash_to_input_var(standard_autoscaling) %>'
         master_authorized_networks: '[<%= hash_to_input_var({"cidr_block" => "#{harness_outputs["bastion_ip_address"]}/32", "display_name" => "bastion"}) %>]'
         proxy_url: <%= "http://#{harness_outputs['bastion_public_ip_address']}:8888" %>

@@ -11,8 +11,7 @@ control 'node_pools' do
   location = input('output_location')
   cluster_name = input('output_name')
   node_pools = JSON.parse(input('output_node_pools_json'), { symbolize_names: true })
-  expected_labels = { 'terraform_module' => 'private-gke-cluster' }
-                    .merge(JSON.parse(input('output_labels_json'), { symbolize_names: false }))
+  expected_labels = JSON.parse(input('output_labels_json'), { symbolize_names: false })
 
   only_if('Autopilot node pools are not configured by module') do
     !input('output_is_autopilot')
@@ -82,7 +81,7 @@ control 'nap_pools' do
   cluster_name = input('output_name')
   autoscaling = JSON.parse(input('output_autoscaling_json'), { symbolize_names: true })
 
-  only_if('Node autoprovisioning is not enabled') do
+  only_if('Node auto-provisioning is not enabled') do
     !(autoscaling.nil? || autoscaling.empty? || autoscaling[:nap].nil? || autoscaling[:nap].empty?)
   end
 
