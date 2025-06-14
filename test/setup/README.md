@@ -64,10 +64,10 @@ gcr_location = "EU"
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | n/a | `string` | n/a | yes |
-| <a name="input_region"></a> [region](#input\_region) | n/a | `string` | n/a | yes |
 | <a name="input_gcr_location"></a> [gcr\_location](#input\_gcr\_location) | n/a | `string` | `"US"` | no |
 | <a name="input_labels"></a> [labels](#input\_labels) | n/a | `map(string)` | `{}` | no |
 | <a name="input_prefix"></a> [prefix](#input\_prefix) | n/a | `string` | `"pgke"` | no |
+| <a name="input_region"></a> [region](#input\_region) | n/a | `string` | `"us-central1"` | no |
 
 ## Outputs
 
