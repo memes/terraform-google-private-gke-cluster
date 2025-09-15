@@ -2,7 +2,7 @@
 # intent is to make it easy to execute a full test suite, or individual actions,
 # with a safety net that ensures the test harness is present before executing
 # kitchen commands. Specifically, Terraform in /test/setup/ has been applied, and
-# the examples have been cloned to an emphemeral folder and source modified to
+# the examples have been cloned to an ephemeral folder and source modified to
 # use these local files.
 #
 # Every kitchen command has an equivalent target; kitchen action [pattern] becomes
@@ -16,6 +16,9 @@
 # Default target will create necessary test harness, then launch kitchen test
 .DEFAULT: test
 
+# TODO @memes - kitchen-terraform requires use of terraform executable, switch
+# to tofu when tests are modified
+TF_EXECUTABLE := terraform
 TF_SETUP_SENTINEL := test/setup/harness.tfvars
 
 .PHONY: test
@@ -53,9 +56,9 @@ converge.%: $(TF_SETUP_SENTINEL)
 EXAMPLES :=
 
 $(TF_SETUP_SENTINEL): $(wildcard test/setup/*.tf) $(filter-out $(TF_SETUP_SENTINEL), $(wildcard test/setup/*.tfvars)) $(addprefix test/ephemeral/,$(addsuffix /main.tf,$(EXAMPLES)))
-	terraform -chdir=$(@D) init -input=false
-	terraform -chdir=$(@D) apply -input=false -auto-approve -target random_pet.prefix -target random_shuffle.zones
-	terraform -chdir=$(@D) apply -input=false -auto-approve
+	$(TF_EXECUTABLE) -chdir=$(@D) init -input=false
+	$(TF_EXECUTABLE) -chdir=$(@D) apply -input=false -auto-approve -target random_pet.prefix -target random_shuffle.zones
+	$(TF_EXECUTABLE) -chdir=$(@D) apply -input=false -auto-approve
 
 # We want the examples to use the registry tagged versions of the module, but
 # need to test against the local code. Make an ephemeral copy of each example
@@ -74,7 +77,7 @@ test/ephemeral/%/main.tf: $(wildcard examples/%/*.tf)
 .PHONY: clean
 clean: $(wildcard $(TF_SETUP_SENTINEL))
 	-if test -n "$<" && test -f "$<"; then kitchen destroy; fi
-	if test -n "$<" && test -f "$<"; then terraform -chdir=$(<D) destroy -auto-approve; fi
+	if test -n "$<" && test -f "$<"; then $(TF_EXECUTABLE) -chdir=$(<D) destroy -auto-approve; fi
 
 .PHONY: realclean
 realclean: clean
@@ -97,17 +100,21 @@ realclean: clean
 # if all those pass indicate success
 .PHONY: pre-release.%
 pre-release.%:
-	@echo '$*' | grep -Eq '^v(?:[0-9]+\.){2}[0-9]+$$' || \
+	@echo '$*' | grep -Eq '^v([0-9]+\.){2}[0-9]+$$' || \
 		(echo "Tag doesn't meet requirements"; exit 1)
-	@test "$(shell git status --porcelain | wc -l | grep -Eo '[0-9]+')" == "0" || \
+	@test "$(shell git status --porcelain | wc -l | grep -Eo '[0-9]+')" -eq 0 || \
 		(echo "Git tree is unclean"; exit 1)
-	@find examples -type f -name main.tf -print0 | \
+	@test -d examples && \
+	    find examples -type f -name main.tf -print0 | \
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "cluster"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
-	@find examples -type f -name main.tf -print0 | \
+	@test -d examples && \
+	    find examples -type f -name main.tf -print0 | \
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "autopilot"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/autopilot/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
-	@find examples -type f -name main.tf -print0 | \
+	@test -d examples && \
+	    find examples -type f -name main.tf -print0 | \
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "kubeconfig"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/kubeconfig/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
-	@find examples -type f -name main.tf -print0 | \
+	@test -d examples && \
+	    find examples -type f -name main.tf -print0 | \
 		xargs -0 awk 'BEGIN{m=0;s=0;v=0}; /module "sa"/ {m=1}; m==1 && /source[ \t]*=[ \t]*"memes\/private-gke-cluster\/google\/\/modules\/sa/ {s++}; m==1 && /version[ \t]*=[ \t]*"$(subst .,\.,$(*:v%=%))"/ {v++}; END{if (s==0) { printf "%s has incorrect source\n", FILENAME}; if (v==0) { printf "%s has incorrect version\n", FILENAME}; if (s==0 || v==0) { exit 1}}'
 	@grep -Eq '^version:[ \t]*$(subst .,\.,$(*:v%=%))[ \t]*$$' test/profiles/access/inspec.yml || \
 		(echo "test/profiles/access/inspec.yml has incorrect tag"; exit 1)

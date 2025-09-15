@@ -4,13 +4,13 @@ name: cluster
 title: Verifies that a private GKE cluster matches expectations
 maintainer: Matthew Emes <memes@matthewemes.com>
 license: Apache-2.0
-version: 2.0.0
+version: 3.0.0
 supports:
   - platform: gcp
 depends:
   - name: inspec-gcp
     git: https://github.com/inspec/inspec-gcp.git
-    tag: v1.11.94
+    tag: v1.11.135
 inputs:
   - name: output_id
     type: string

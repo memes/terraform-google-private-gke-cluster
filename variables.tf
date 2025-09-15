@@ -53,7 +53,7 @@ variable "master_authorized_networks" {
     display_name = string
   }))
   validation {
-    condition     = var.master_authorized_networks == null ? false : length(compact([for v in var.master_authorized_networks : can(cidrhost(v.cidr_block, 0)) && coalesce(v.display_name, "unspecified") != "unspecified" ? "x" : ""])) == length(var.master_authorized_networks)
+    condition     = var.master_authorized_networks == null ? false : alltrue([for v in var.master_authorized_networks : can(cidrhost(v.cidr_block, 0)) && coalesce(v.display_name, "unspecified") != "unspecified"])
     error_message = "Each master_authorized_networks value must have a valid cidr_block and display_name."
   }
   description = <<-EOD
@@ -221,6 +221,16 @@ variable "node_pools" {
       effect = string
     }))
     tags = list(string)
+    gpus = list(object({
+      type           = string
+      count          = number
+      install_driver = bool
+      driver_version = string
+      sharing = object({
+        strategy    = string
+        max_clients = number
+      })
+    }))
   }))
   description = <<-EOD
   Defines the mapping of node pool names (keys), to attributes of the node pools.

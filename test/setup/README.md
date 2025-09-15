@@ -32,11 +32,11 @@ gcr_location = "EU"
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.2 |
-| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.21 |
-| <a name="requirement_http"></a> [http](#requirement\_http) | >= 3.2 |
-| <a name="requirement_local"></a> [local](#requirement\_local) | >= 2.2 |
-| <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.3 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.5 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 6.27 |
+| <a name="requirement_http"></a> [http](#requirement\_http) | >= 3.4 |
+| <a name="requirement_local"></a> [local](#requirement\_local) | >= 2.5 |
+| <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.7 |
 
 ## Modules
 
@@ -64,10 +64,10 @@ gcr_location = "EU"
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | n/a | `string` | n/a | yes |
-| <a name="input_region"></a> [region](#input\_region) | n/a | `string` | n/a | yes |
 | <a name="input_gcr_location"></a> [gcr\_location](#input\_gcr\_location) | n/a | `string` | `"US"` | no |
 | <a name="input_labels"></a> [labels](#input\_labels) | n/a | `map(string)` | `{}` | no |
 | <a name="input_prefix"></a> [prefix](#input\_prefix) | n/a | `string` | `"pgke"` | no |
+| <a name="input_region"></a> [region](#input\_region) | n/a | `string` | `"us-central1"` | no |
 
 ## Outputs
 

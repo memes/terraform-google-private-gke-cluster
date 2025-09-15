@@ -1,9 +1,9 @@
 terraform {
-  required_version = ">= 1.2"
+  required_version = ">= 1.5"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 5.21"
+      version = ">= 6.27"
     }
   }
 }
@@ -17,9 +17,7 @@ resource "google_service_account" "sa" {
 
 resource "google_project_iam_member" "roles" {
   for_each = toset([
-    "roles/logging.logWriter",
-    "roles/monitoring.metricWriter",
-    "roles/monitoring.viewer",
+    "roles/container.defaultNodeServiceAccount",
     "roles/stackdriver.resourceMetadata.writer",
   ])
   project = var.project_id

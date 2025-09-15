@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 control 'service_account' do
   title 'Ensure GKE service account meets expectations'
   impact 1.0
