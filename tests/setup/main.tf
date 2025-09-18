@@ -53,7 +53,7 @@ locals {
   labels = merge({
     use-case = "automated-testing"
     product  = "terraform-google-private-gke-cluster"
-    driver   = "kitchen-terraform"
+    driver   = "pytest"
   }, var.labels)
 }
 
