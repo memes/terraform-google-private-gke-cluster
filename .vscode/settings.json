@@ -1,6 +1,17 @@
 {
     "yaml.schemas": {
-        "https://json.schemastore.org/github-issue-config.json": ".github/ISSUE_TEMPLATE/config.yml",
-        "https://goreleaser.com/static/schema.json": ".goreleaser.yml"
-    }
+        "https://json.schemastore.org/github-issue-config.json": ".github/ISSUE_TEMPLATE/config.yml"
+    },
+    "[python]":  {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnPaste": false,
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        }
+    },
+    "python.languageServer": "Pylance",
+    "python.testing.pytestEnabled": true
 }

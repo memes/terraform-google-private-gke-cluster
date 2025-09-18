@@ -26,3 +26,5 @@ fileignoreconfig:
   checksum: 36566aafe932376e7256a1aa7017fc02b7203adc0d305aa975bf1a728e427fb9
 - filename: test/profiles/cluster/controls/cluster.rb
   checksum: 3cce8abc8059b19fdae07d94f9ff774b487266d00e8431edb47e802c44d59af5
+- filename: uv.lock
+  checksum: 1c0f1da75d7a8d9d7419c34817168979288000d8498560da995b162f0f2f435a
