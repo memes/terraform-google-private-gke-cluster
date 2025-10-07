@@ -20,8 +20,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pre-commit>=4.3.0",
-    "pyright[nodejs]>=1.1.405",
-    "ruff>=0.13.0",
+    "pyright[nodejs]>=1.1.406",
+    "ruff>=0.13.3",
 ]
 
 [tool.ruff]
