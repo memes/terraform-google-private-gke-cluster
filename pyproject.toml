@@ -6,7 +6,13 @@ readme = "README.md"
 requires-python = ">=3.12"
 # spell-checker: disable
 dependencies = [
+    "cryptography>=46.0.1",
+    "google-cloud-artifact-registry>=1.16.1",
     "google-cloud-compute>=1.37.0",
+    "google-cloud-container>=2.59.0",
+    "google-cloud-iam>=2.19.1",
+    "google-cloud-resource-manager>=1.14.2",
+    "kubernetes>=33.1.0",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
 ]
@@ -31,8 +37,8 @@ fixable = ["ALL"]
 unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
-# Allow assert and don't complain about implicit namespaces for tests.
-"**/tests/**/*" = ["S", "INP"]
+# Allow assert and don't complain about implicit namespaces or too many arguements for tests.
+"**/tests/**/*" = ["S", "INP", "PLR0913"]
 
 [tool.ruff.format]
 quote-style = "double"

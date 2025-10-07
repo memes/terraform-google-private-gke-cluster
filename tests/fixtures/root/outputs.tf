@@ -24,12 +24,3 @@ output "public_endpoint_url" {
   sensitive = true
   value     = module.test.public_endpoint_url
 }
-
-output "service_account" {
-  value = module.sa.email
-}
-
-output "kubeconfig" {
-  sensitive = true
-  value     = module.kubeconfig.kubeconfig
-}

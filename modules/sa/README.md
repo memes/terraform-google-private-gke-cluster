@@ -35,7 +35,7 @@ No modules.
 |------|-------------|------|---------|:--------:|
 | <a name="input_name"></a> [name](#input\_name) | The name to give to the service account. | `string` | n/a | yes |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | The GCP project identifier where the private GKE cluster will be created. | `string` | n/a | yes |
-| <a name="input_description"></a> [description](#input\_description) | An optional description to apply to the generated service account. The default<br/>value describes the purpose of the service account. | `string` | `"A Terraform generated Service Account suitable for use by GKE nodes. The service\naccount is intended to have minimal roles required to log and report base\nmetrics to Google Cloud Operations.\n"` | no |
+| <a name="input_description"></a> [description](#input\_description) | An optional description to apply to the generated service account. The default<br/>value describes the purpose of the service account. | `string` | `"A Terraform generated Service Account suitable for use by GKE nodes. The service account is intended to have minimal roles required to log and report base metrics to Google Cloud Operations."` | no |
 | <a name="input_display_name"></a> [display\_name](#input\_display\_name) | An optional display name to associate with the generated service account. Default<br/>is 'Generated GKE Service Account'. | `string` | `"Generated GKE Service Account"` | no |
 | <a name="input_repositories"></a> [repositories](#input\_repositories) | An optional list of GCR and/or GAR repositories. If provided, the generated<br/>service account will be given the appropriate GCR or GAR read-only access role<br/>to the repos. | `list(string)` | `[]` | no |
 

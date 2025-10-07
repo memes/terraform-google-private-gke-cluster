@@ -1,6 +1,5 @@
-variable "prefix" {
-  type    = string
-  default = "pgke"
+variable "name" {
+  type = string
 }
 
 variable "project_id" {
@@ -15,9 +14,4 @@ variable "region" {
 variable "labels" {
   type    = map(string)
   default = {}
-}
-
-variable "gcr_location" {
-  type    = string
-  default = "US"
 }

@@ -11,6 +11,10 @@ variable "description" {
   default = null
 }
 
+variable "service_account" {
+  type = string
+}
+
 variable "subnet" {
   type = object({
     self_link           = string
@@ -87,8 +91,4 @@ variable "nap" {
     tags = list(string)
   })
   default = null
-}
-
-variable "proxy_url" {
-  type = string
 }
