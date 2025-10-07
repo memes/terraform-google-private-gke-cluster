@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.0.0](https://github.com/memes/terraform-google-private-gke-cluster/compare/v2.0.0...v3.0.0) (2025-10-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* Updating the minimum required versions of provider and terraform/tofu can have side-effects.
+
+### Features
+
+* Bump terraform/tofu 1.5+, google 6.27+ ([fe6f5ab](https://github.com/memes/terraform-google-private-gke-cluster/commit/fe6f5abcca08cd1d3e0d0d28ae1f4f9781b1adbe))
+
+
+### Bug Fixes
+
+* Add initial support for GPUs to standard ([1be3a9c](https://github.com/memes/terraform-google-private-gke-cluster/commit/1be3a9c1110033db375958396319ead89bfc3132))
+* Module shouldn't add arbitrary labels ([2932fee](https://github.com/memes/terraform-google-private-gke-cluster/commit/2932feea60d149ddae852d067ec030fd01e676ff))
+* **sa:** Use predefined default node SA role ([fa2e3f8](https://github.com/memes/terraform-google-private-gke-cluster/commit/fa2e3f86655c88701308b158ea605e788d25a8bf))
+
 ## [2.0.0](https://github.com/memes/terraform-google-private-gke-cluster/compare/v1.1.1...v2.0.0) (2024-03-27)
 
 
