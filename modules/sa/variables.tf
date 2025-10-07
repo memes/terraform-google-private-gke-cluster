@@ -31,11 +31,7 @@ variable "display_name" {
 
 variable "description" {
   type        = string
-  default     = <<-EOD
-  A Terraform generated Service Account suitable for use by GKE nodes. The service
-  account is intended to have minimal roles required to log and report base
-  metrics to Google Cloud Operations.
-  EOD
+  default     = "A Terraform generated Service Account suitable for use by GKE nodes. The service account is intended to have minimal roles required to log and report base metrics to Google Cloud Operations."
   description = <<-EOD
   An optional description to apply to the generated service account. The default
   value describes the purpose of the service account.

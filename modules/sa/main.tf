@@ -26,8 +26,8 @@ resource "google_project_iam_member" "roles" {
 }
 
 locals {
-  gcr_buckets = var.repositories == null ? [] : [for name in var.repositories : format("%sartifacts.%s.appspot.com", try(regex("^((asia|eu|us).)gcr.io", name)[0], ""), regex("gcr.io/([^/]+)", name)[0]) if can(regex("^(?:(?:asia|eu|us).)?gcr.io", name))]
-  ar_repos    = var.repositories == null ? {} : { for name in var.repositories : regex("^[^-]+-docker.pkg.dev/[^/]+/([^/]+)", name)[0] => { location = regex("^([^-]+)-docker", name)[0], project = regex("docker.pkg.dev/([^/]+)/", name)[0] } if can(regex("^[^-]+-docker.pkg.dev/[^/]+/[^/]+", name)) }
+  gcr_buckets = var.repositories == null ? [] : [for name in var.repositories : format("%sartifacts\\.%s\\.appspot\\.com", try(regex("^((asia|eu|us).)gcr.io", name)[0], ""), regex("gcr\\.io/([^/]+)", name)[0]) if can(regex("^(?:(?:asia|eu|us).)?gcr\\.io", name))]
+  ar_repos    = var.repositories == null ? {} : { for name in var.repositories : regex("^.*-docker\\.pkg\\.dev/[^/]+/([^/]+)", name)[0] => { location = regex("^(.*)-docker", name)[0], project = regex("docker\\.pkg\\.dev/([^/]+)/", name)[0] } if can(regex("^.+-docker\\.pkg\\.dev/[^/]+/[^/]+", name)) }
 }
 
 # For the unique set of GCR repos, assign objectViewer role to the service account

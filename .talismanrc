@@ -1,6 +1,7 @@
 # spell-checker: disable
 # yamllint disable rule:line-length
 ---
+version: "1.0"
 fileignoreconfig:
 - filename: .github/workflows/release.yml
   checksum: a975e764f9205155fb006fef6de943574e3d61a314f9215599590a0242ad2efc
@@ -26,3 +27,25 @@ fileignoreconfig:
   checksum: 36566aafe932376e7256a1aa7017fc02b7203adc0d305aa975bf1a728e427fb9
 - filename: test/profiles/cluster/controls/cluster.rb
   checksum: 3cce8abc8059b19fdae07d94f9ff774b487266d00e8431edb47e802c44d59af5
+- filename: uv.lock
+  checksum: f32386bbc2b841ae41a9ed9dc9e0a7f9795298a180f2acae0c88c7c6e008d929
+  ignore_detectors:
+    - filecontent
+- filename: tests/conftest.py
+  checksum: 7c3b5e7433f4bfbf31f8de79b80d1465cf7077d719b757921faa2617bfa11b0f
+- filename: tests/gke_common_assertions.py
+  checksum: 746cb9e663ce657caca08b8b28e3611400d76fa938bcbd69f55ece1b8e963f12
+- filename: tests/test_autopilot_nap.py
+  checksum: 8adab34ebbebd2ceb95ae0a351fa57662fb7ad5505bb38c92a6f8c3e899e7f04
+- filename: tests/test_autopilot_min.py
+  checksum: e656ff4165cd0a41002d86dbe2e5fdaffdfdabf8b1b95f3e872a612cbf9abb1b
+- filename: tests/gke_standard_assertions.py
+  checksum: 202eea8219cf7e8a743871d782df1b0ef12f36a3f5b0459820b811c6e9d6862b
+- filename: tests/test_root_min.py
+  checksum: 9ae59b870e622731cfb79bde856b8f9feeefa6b224e4f3ff2df743de88ea773a
+- filename: tests/test_kubeconfig.py
+  checksum: 8f66f2f7cd2ff3697aa1111a6894f2f7e7063a353bf78df50a191a417064f581
+- filename: tests/test_root_fixed_pool.py
+  checksum: 564e1406ba5819a4af8f5530d2def50e91b10221fae1d9b53e43995cb695e7c8
+- filename: tests/test_autopilot_pub.py
+  checksum: 2755852f4f80564588b392b915febfc8ed7e9e1248191196d9579df929bc1646

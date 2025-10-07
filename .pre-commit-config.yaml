@@ -2,35 +2,33 @@
 ---
 repos:
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.37.0
+    rev: v1.37.1
     hooks:
       - id: yamllint
         files: \.(yml|yaml|talismanrc)$
-        types:
-          - file
-          - yaml
-        exclude: (kitchen\.yml|templates/kubeconfig\.yaml)$
+        types: [file, yaml]
         entry: yamllint --strict
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.13.3
+    hooks:
+      - id: ruff-check
+        args:
+          - --fix
+          - --exit-non-zero-on-fix
+      - id: ruff-format
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.18.1
+    hooks:
+      - id: markdownlint-cli2
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.98.0
+    rev: v1.101.0
     hooks:
       - id: terraform_fmt
       - id: terraform_docs
-        args:
-          - '--args=--sort-by=required --hide=providers'
+        args: ['--args=--sort-by=required --hide=providers']
       - id: terraform_tflint
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v4.0.0
-    hooks:
-      - id: conventional-pre-commit
-        stages:
-          - commit-msg
-  - repo: https://github.com/mattlqx/pre-commit-ruby
-    rev: v1.3.6
-    hooks:
-      - id: rubocop
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-executables-have-shebangs
       - id: check-merge-conflict
@@ -41,7 +39,11 @@ repos:
           - -b
           - main
       - id: trailing-whitespace
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.406
+    hooks:
+      - id: pyright
   - repo: https://github.com/thoughtworks/talisman
-    rev: v1.33.2
+    rev: v1.37.0
     hooks:
       - id: talisman-commit
