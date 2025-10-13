@@ -131,9 +131,6 @@ def fixture_output(
     assert service_account
     subnet = cast("dict[str, str]", vpc_fixture_output["subnet"])
     assert subnet
-    subnet = subnet | {
-        "master_cidr": "192.168.0.0/28",
-    }
     my_address = vpc_fixture_output["my_address"]
     assert my_address
     bastion_ip_address = vpc_fixture_output["bastion_ip_address"]
@@ -158,12 +155,7 @@ def fixture_output(
             ],
             "labels": fixture_labels,
             "options": {
-                "release_channel": "STABLE",
-                "master_global_access": True,
-                "etcd_kms": None,
                 "private_endpoint": False,
-                "default_snat": True,
-                "deletion_protection": False,
             },
         },
     ) as output:

@@ -19,6 +19,5 @@ module "test" {
   labels                     = var.labels
   options                    = var.options
   features                   = var.features
-  maintenance                = var.maintenance
   nap                        = var.nap
 }

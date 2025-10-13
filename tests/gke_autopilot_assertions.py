@@ -58,7 +58,7 @@ def assert_default_cluster_config(
     assert (
         cluster.description == expected_description
         if expected_description
-        else f"Private autopilot GKE cluster {expected_name}"
+        else "Private autopilot GKE cluster for demo"
     )
     assert not cluster.initial_node_count
     assert cluster.logging_service == "logging.googleapis.com/kubernetes"

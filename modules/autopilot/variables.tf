@@ -1,5 +1,6 @@
 variable "project_id" {
-  type = string
+  type     = string
+  nullable = false
   validation {
     condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
     error_message = "The project_id variable must must be 6 to 30 lowercase letters, digits, or hyphens; it must start with a letter and cannot end with a hyphen."
@@ -10,7 +11,8 @@ variable "project_id" {
 }
 
 variable "name" {
-  type = string
+  type     = string
+  nullable = false
   validation {
     condition     = can(regex("^[a-z][a-z0-9-]{0,62}$", var.name))
     error_message = "The name variable must be RFC1035 compliant and between 1 and 63 characters in length."
@@ -23,6 +25,7 @@ variable "name" {
 
 variable "description" {
   type        = string
+  nullable    = true
   default     = null
   description = <<-EOD
   An optional description to add to the Autopilot GKE cluster.
@@ -32,12 +35,13 @@ variable "description" {
 variable "subnet" {
   type = object({
     self_link           = string
-    pods_range_name     = string
-    services_range_name = string
-    master_cidr         = string
+    pods_range_name     = optional(string, "pods")
+    services_range_name = optional(string, "services")
+    master_cidr         = optional(string, "192.168.0.0/28")
   })
+  nullable = false
   validation {
-    condition     = var.subnet == null ? false : can(regex("^(?:https://www.googleapis.com/compute/v1/)?projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/regions/[a-z]{2,}-[a-z]{2,}[0-9]/subnetworks/[a-z]([a-z0-9-]+[a-z0-9])?$", var.subnet.self_link)) && coalesce(var.subnet.pods_range_name, "unspecified") != "unspecified" && coalesce(var.subnet.services_range_name, "unspecified") != "unspecified" && can(cidrhost(var.subnet.master_cidr, 1))
+    condition     = can(regex("^(?:https://www.googleapis.com/compute/v1/)?projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/regions/[a-z]{2,}-[a-z]{2,}[0-9]/subnetworks/[a-z]([a-z0-9-]+[a-z0-9])?$", var.subnet.self_link)) && coalesce(var.subnet.pods_range_name, "unspecified") != "unspecified" && coalesce(var.subnet.services_range_name, "unspecified") != "unspecified" && can(cidrhost(var.subnet.master_cidr, 1))
     error_message = "The subnet value must have a valid self_link URI, and non-empty pods and services names, and a valid master CIDR."
   }
   description = <<-EOD
@@ -52,6 +56,7 @@ variable "master_authorized_networks" {
     cidr_block   = string
     display_name = string
   }))
+  nullable = true
   validation {
     condition     = var.master_authorized_networks == null ? false : alltrue([for v in var.master_authorized_networks : can(cidrhost(v.cidr_block, 0)) && coalesce(v.display_name, "unspecified") != "unspecified"])
     error_message = "Each master_authorized_networks value must have a valid cidr_block and display_name."
@@ -62,7 +67,8 @@ variable "master_authorized_networks" {
 }
 
 variable "service_account" {
-  type = string
+  type     = string
+  nullable = false
   validation {
     condition     = can(regex("(?:[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]{4,28}\\.iam|[1-9][0-9]+-compute@developer)\\.gserviceaccount\\.com$", var.service_account))
     error_message = "The service_account variable must be a valid GCP service account email address."
@@ -73,11 +79,12 @@ variable "service_account" {
 }
 
 variable "labels" {
-  type = map(string)
+  type     = map(string)
+  nullable = true
   validation {
     # GCP resource labels must be lowercase alphanumeric, underscore or hyphen,
     # and the key must be <= 63 characters in length
-    condition     = length(compact([for k, v in var.labels : can(regex("^[a-z][a-z0-9_-]{0,62}$", k)) && can(regex("^[a-z0-9_-]{0,63}$", v)) ? "x" : ""])) == length(keys(var.labels))
+    condition     = var.labels == null ? true : length(compact([for k, v in var.labels : can(regex("^[a-z][a-z0-9_-]{0,62}$", k)) && can(regex("^[a-z0-9_-]{0,63}$", v)) ? "x" : ""])) == length(keys(var.labels))
     error_message = "Each label key:value pair must match expectations."
   }
   default     = {}
@@ -89,20 +96,17 @@ variable "labels" {
 
 variable "options" {
   type = object({
-    release_channel      = string
-    master_global_access = bool
-    etcd_kms             = string
-    private_endpoint     = bool
-    default_snat         = bool
-    deletion_protection  = bool
+    release_channel      = optional(string, "STABLE")
+    master_global_access = optional(bool, true)
+    private_endpoint     = optional(bool, false)
+    default_snat         = optional(bool, true)
   })
+  nullable = false
   default = {
     release_channel      = "STABLE"
     master_global_access = true
-    etcd_kms             = null
     private_endpoint     = true
     default_snat         = true
-    deletion_protection  = false
   }
   description = <<-EOD
   Defines the set of GKE options to use when provisioning the cluster. Default
@@ -113,46 +117,30 @@ variable "options" {
 
 variable "features" {
   type = object({
-    binary_authorization = bool
-    confidential_nodes   = bool
+    binary_authorization = optional(bool, false)
+    confidential_nodes   = optional(bool, false)
+    secret_manager       = optional(bool, true)
   })
   default = {
     binary_authorization = false
     confidential_nodes   = false
+    secret_manager       = true
   }
   description = <<-EOD
-  The set of features that will be enabled on the Autopilot cluster. By default,
-  binary authorization and confidential worker nodes will NOT be enabled.
-  EOD
-}
-
-variable "maintenance" {
-  type = object({
-    start_time = string
-    end_time   = string
-    exclusions = list(object({
-      name            = string
-      start_time      = string
-      end_time        = string
-      exclusion_scope = string
-    }))
-    recurrence = string
-  })
-  default = {
-    start_time = "05:00"
-    end_time   = ""
-    exclusions = []
-    recurrence = ""
-  }
-  description = <<-EOD
-  Defines the times that GKE is permitted to perform automatic cluster maintenance.
+  The set of features that will be enabled on the Autopilot cluster. By default Secret Manager integration will be
+  enabled, but binary authorization and confidential worker nodes will be disabled.
   EOD
 }
 
 variable "nap" {
   type = object({
-    tags = list(string)
+    tags = optional(list(string), null)
   })
+  nullable = true
+  validation {
+    condition     = var.nap == null ? true : (try(var.nap.tags, null) == null ? true : alltrue([for tag in var.nap.tags : can(regex("^[a-z][a-z0-9-]{0,62}$", tag))]))
+    error_message = "Each tag in the nap variable must be RFC1035 compliant."
+  }
   default     = null
   description = <<-EOD
   Configures cluster-scoped node auto-provisioning parameters for use with autopilot.

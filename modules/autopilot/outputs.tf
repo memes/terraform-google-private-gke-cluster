@@ -27,7 +27,7 @@ EOD
 
 output "ca_cert" {
   sensitive   = true
-  value       = google_container_cluster.cluster.master_auth.0.cluster_ca_certificate
+  value       = google_container_cluster.cluster.master_auth[0].cluster_ca_certificate
   description = <<-EOD
   The base64 encoded CA certificate used by the kubernetes master.
 EOD
@@ -38,7 +38,7 @@ EOD
 
 output "endpoint_url" {
   sensitive   = true
-  value       = format("https://%s", google_container_cluster.cluster.private_cluster_config.0.private_endpoint)
+  value       = format("https://%s", google_container_cluster.cluster.private_cluster_config[0].private_endpoint)
   description = <<-EOD
   The URL to use for master access.
 EOD
@@ -49,7 +49,7 @@ EOD
 
 output "public_endpoint_url" {
   sensitive   = true
-  value       = try(var.options.private_endpoint, true) ? null : format("https://%s", google_container_cluster.cluster.private_cluster_config.0.public_endpoint)
+  value       = try(var.options.private_endpoint, true) ? null : format("https://%s", google_container_cluster.cluster.private_cluster_config[0].public_endpoint)
   description = <<-EOD
   The URL to use for master access.
   EOD

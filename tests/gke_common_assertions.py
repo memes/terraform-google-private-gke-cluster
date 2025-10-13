@@ -48,7 +48,7 @@ def assert_default_maintenance_policy(maintenance_policy: container_v1.Maintenan
     """Raise an AssertionError if the MaintenancePolicy object does not meet default module expectations."""
     assert maintenance_policy
     assert maintenance_policy.window.daily_maintenance_window
-    assert maintenance_policy.window.daily_maintenance_window.start_time == "05:00"
+    assert maintenance_policy.window.daily_maintenance_window.start_time == "03:30"
 
 
 def assert_default_resource_labels(resource_labels: MutableMapping, expected_labels: Mapping) -> None:
@@ -204,7 +204,7 @@ def assert_enterprise_config(enterprise_config: container_v1.EnterpriseConfig | 
 def assert_secret_manager_config(secret_manager_config: container_v1.SecretManagerConfig | None) -> None:
     """Raise an AssertionError if SecretManagerConfig object does not match default module expectations."""
     assert secret_manager_config is not None
-    assert not secret_manager_config.enabled
+    assert secret_manager_config.enabled
 
 
 def assert_compliance_posture_config(compliance_posture_config: container_v1.CompliancePostureConfig | None) -> None:

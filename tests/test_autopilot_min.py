@@ -132,9 +132,6 @@ def fixture_output(
     assert service_account
     subnet = cast("dict[str, str]", vpc_fixture_output["subnet"])
     assert subnet
-    subnet = subnet | {
-        "master_cidr": "192.168.0.0/28",
-    }
     bastion_ip_address = vpc_fixture_output["bastion_ip_address"]
     assert bastion_ip_address
     with run_tofu_in_workspace(
