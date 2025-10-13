@@ -135,10 +135,15 @@ def assert_default_network_config(
         network_config.private_ipv6_google_access
         == container_v1.PrivateIPv6GoogleAccess.PRIVATE_IPV6_GOOGLE_ACCESS_UNSPECIFIED
     )
-    assert network_config.dns_config.cluster_dns == container_v1.DNSConfig.Provider.PROVIDER_UNSPECIFIED
-    assert network_config.dns_config.cluster_dns_scope == container_v1.DNSConfig.DNSScope.DNS_SCOPE_UNSPECIFIED
-    assert not network_config.dns_config.cluster_dns_domain
-    assert not network_config.dns_config.additive_vpc_scope_dns_domain
+
+
+def assert_default_dns_config(dns_config: container_v1.DNSConfig | None) -> None:
+    """Raise an AssertionError if DNSConfig object does not meet default Autopilot module expectations."""
+    assert dns_config is not None
+    assert dns_config.cluster_dns == container_v1.DNSConfig.Provider.PROVIDER_UNSPECIFIED
+    assert dns_config.cluster_dns_scope == container_v1.DNSConfig.DNSScope.DNS_SCOPE_UNSPECIFIED
+    assert not dns_config.cluster_dns_domain
+    assert not dns_config.additive_vpc_scope_dns_domain
 
 
 def assert_default_vertical_pod_autoscaling(
@@ -292,6 +297,7 @@ __all__ = [
     "assert_default_control_plane_endpoints_config",
     "assert_default_cost_management_config",
     "assert_default_database_encryption",
+    "assert_default_dns_config",
     "assert_default_fleet",
     "assert_default_identity_service_config",
     "assert_default_ip_allocation_policy",

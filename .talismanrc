@@ -51,3 +51,5 @@ fileignoreconfig:
   checksum: 2755852f4f80564588b392b915febfc8ed7e9e1248191196d9579df929bc1646
 - filename: tests/fixtures/autopilot/variables.tf
   checksum: eed5d69d91ade8068d07835ea464da1498a0312287606dc787818ecb4ed85314
+- filename: tests/test_autopilot_dns.py
+  checksum: e8036f0469156c02fb254b343f013d078e0e7f6ab9281c768a420b6ad9b682c2

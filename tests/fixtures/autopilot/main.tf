@@ -20,4 +20,5 @@ module "test" {
   options                    = var.options
   features                   = var.features
   nap                        = var.nap
+  dns                        = var.dns
 }

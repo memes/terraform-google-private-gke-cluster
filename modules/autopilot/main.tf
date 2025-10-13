@@ -55,7 +55,7 @@ resource "google_container_cluster" "cluster" {
   }
 
   dynamic "node_pool_auto_config" {
-    for_each = length(try(var.nap.tags, [])) > 0 ? [1] : []
+    for_each = length(try(var.nap.tags, [])) > 0 ? { enabled = true } : {}
     content {
       network_tags {
         tags = var.nap.tags
@@ -68,7 +68,7 @@ resource "google_container_cluster" "cluster" {
   }
 
   dynamic "master_authorized_networks_config" {
-    for_each = try(length(var.master_authorized_networks), 0) > 0 ? [1] : []
+    for_each = try(length(var.master_authorized_networks), 0) > 0 ? { enabled = true } : {}
     content {
       dynamic "cidr_blocks" {
         for_each = var.master_authorized_networks
@@ -88,11 +88,8 @@ resource "google_container_cluster" "cluster" {
     enable_private_nodes    = true
     enable_private_endpoint = try(var.options.private_endpoint, true) ? true : null
     master_ipv4_cidr_block  = try(var.subnet.master_cidr, "192.168.0.0/28")
-    dynamic "master_global_access_config" {
-      for_each = try(var.options.master_global_access, false) ? [var.options.master_global_access] : []
-      content {
-        enabled = master_global_access_config.value
-      }
+    master_global_access_config {
+      enabled = try(var.options.master_global_access, false)
     }
   }
 
@@ -111,11 +108,20 @@ resource "google_container_cluster" "cluster" {
     }
   }
 
+  dynamic "dns_config" {
+    for_each = var.dns == null ? {} : { dns = var.dns }
+    content {
+      cluster_dns                   = try(dns_config.value.cluster_dns, "CLOUD_DNS")
+      cluster_dns_scope             = "CLUSTER_SCOPE" # This is the only valid option for Autopilot clusters
+      cluster_dns_domain            = try(dns_config.value.cluster_dns_domain, "cluster.local")
+      additive_vpc_scope_dns_domain = try(dns_config.value.cluster_dns, "CLOUD_DNS") == "CLOUD_DNS" ? try(dns_config.value.additive_vpc_scope_dns_domain, null) : null
+    }
+  }
+
   lifecycle {
     ignore_changes = [
       initial_node_count,
       resource_labels,
-      dns_config,
     ]
   }
 

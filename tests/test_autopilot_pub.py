@@ -24,6 +24,7 @@ from .gke_autopilot_assertions import (
     assert_default_confidential_nodes,
     assert_default_cost_management_config,
     assert_default_database_encryption,
+    assert_default_dns_config,
     assert_default_fleet,
     assert_default_identity_service_config,
     assert_default_ip_allocation_policy,
@@ -539,3 +540,8 @@ def test_public_api_access(
             namespace="kube-system",
             label_selector="kubernetes.io/cluster-service=true",
         )
+
+
+def test_default_dns_config(cluster: container_v1.Cluster) -> None:
+    """Verify the GKE cluster default DNS configuration meets expectations."""
+    assert_default_dns_config(dns_config=cluster.network_config.dns_config)

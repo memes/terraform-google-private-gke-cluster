@@ -8,7 +8,7 @@ variable "name" {
 
 variable "description" {
   type    = string
-  default = null
+  default = "Private Autopilot GKE cluster for demo"
 }
 
 variable "service_account" {
@@ -67,6 +67,17 @@ variable "features" {
 variable "nap" {
   type = object({
     tags = optional(list(string), null)
+  })
+  default = null
+}
+
+
+variable "dns" {
+  type = object({
+    cluster_dns                   = optional(string, "CLOUD_DNS")
+    cluster_dns_scope             = optional(string, "CLUSTER_SCOPE")
+    cluster_dns_domain            = optional(string, "cluster.local")
+    additive_vpc_scope_dns_domain = optional(string)
   })
   default = null
 }

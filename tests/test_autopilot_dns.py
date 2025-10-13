@@ -25,7 +25,6 @@ from .gke_autopilot_assertions import (
     assert_default_control_plane_endpoints_config,
     assert_default_cost_management_config,
     assert_default_database_encryption,
-    assert_default_dns_config,
     assert_default_fleet,
     assert_default_identity_service_config,
     assert_default_ip_allocation_policy,
@@ -61,7 +60,7 @@ from .kubernetes_assertions import (
     assert_namespace,
 )
 
-FIXTURE_NAME = "auto-min"
+FIXTURE_NAME = "auto-dns"
 FIXTURE_LABELS = {
     "fixture": FIXTURE_NAME,
 }
@@ -150,6 +149,9 @@ def fixture_output(
                 },
             ],
             "labels": fixture_labels,
+            "dns": {
+                "additive_vpc_scope_dns_domain": f"example.{fixture_name}",
+            },
         },
     ) as output:
         yield output
@@ -497,6 +499,11 @@ def test_private_api_access_via_proxy(
         )
 
 
-def test_default_dns_config(cluster: container_v1.Cluster) -> None:
+def test_default_dns_config(cluster: container_v1.Cluster, fixture_name: str) -> None:
     """Verify the GKE cluster default DNS configuration meets expectations."""
-    assert_default_dns_config(dns_config=cluster.network_config.dns_config)
+    dns_config = cluster.network_config.dns_config
+    assert dns_config is not None
+    assert dns_config.cluster_dns == container_v1.DNSConfig.Provider.CLOUD_DNS
+    assert dns_config.cluster_dns_scope == container_v1.DNSConfig.DNSScope.CLUSTER_SCOPE
+    assert dns_config.cluster_dns_domain == "cluster.local"
+    assert dns_config.additive_vpc_scope_dns_domain == f"example.{fixture_name}"

@@ -4,6 +4,7 @@ import base64
 import ipaddress
 import pathlib
 import urllib.parse
+from collections import Counter
 from collections.abc import Generator
 from typing import Any, cast
 
@@ -25,6 +26,7 @@ from .gke_autopilot_assertions import (
     assert_default_control_plane_endpoints_config,
     assert_default_cost_management_config,
     assert_default_database_encryption,
+    assert_default_dns_config,
     assert_default_fleet,
     assert_default_identity_service_config,
     assert_default_ip_allocation_policy,
@@ -36,7 +38,6 @@ from .gke_autopilot_assertions import (
     assert_default_monitoring_config,
     assert_default_network_config,
     assert_default_network_policy,
-    assert_default_node_pool_auto_config,
     assert_default_node_pool_defaults,
     assert_default_node_pools,
     assert_default_notification_config,
@@ -417,9 +418,19 @@ def test_monitoring_config(cluster: container_v1.Cluster) -> None:
     assert_default_monitoring_config(cluster.monitoring_config)
 
 
-def test_node_pool_auto_config(cluster: container_v1.Cluster) -> None:
+def test_node_pool_auto_config(cluster: container_v1.Cluster, fixture_name: str) -> None:
     """Verify the GKE cluster node pool auto config meets expectations."""
-    assert_default_node_pool_auto_config(cluster.node_pool_auto_config)
+    node_pool_auto_config = cluster.node_pool_auto_config
+    assert node_pool_auto_config is not None
+    assert node_pool_auto_config.network_tags is not None
+    expected_tags = [
+        fixture_name,
+    ]
+    assert Counter(node_pool_auto_config.network_tags.tags) == Counter(expected_tags)
+    assert node_pool_auto_config.resource_manager_tags is not None
+    assert len(node_pool_auto_config.resource_manager_tags.tags) == 0
+    assert node_pool_auto_config.node_kubelet_config is not None
+    assert node_pool_auto_config.linux_node_config is not None
 
 
 def test_pod_autoscaling(cluster: container_v1.Cluster) -> None:
@@ -504,3 +515,8 @@ def test_private_api_access_via_proxy(
             namespace="kube-system",
             label_selector="kubernetes.io/cluster-service=true",
         )
+
+
+def test_default_dns_config(cluster: container_v1.Cluster) -> None:
+    """Verify the GKE cluster default DNS configuration meets expectations."""
+    assert_default_dns_config(dns_config=cluster.network_config.dns_config)
