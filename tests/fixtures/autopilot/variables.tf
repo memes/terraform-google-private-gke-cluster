@@ -56,11 +56,13 @@ variable "features" {
     binary_authorization = optional(bool, false)
     confidential_nodes   = optional(bool, false)
     secret_manager       = optional(bool, true)
+    gateway_api          = optional(bool, true)
   })
   default = {
     binary_authorization = false
     confidential_nodes   = false
     secret_manager       = true
+    gateway_api          = true
   }
 }
 

@@ -12,7 +12,7 @@ fileignoreconfig:
 - filename: Makefile
   checksum: 77d9b5e81555329b4e2463aa4f628bd15a09e4db781b0a070695b47f613b02e2
 - filename: modules/autopilot/README.md
-  checksum: 081b3e3295cd46d6b1f515e3bbbe963511f960a09adb1492cf792b6d469d6418
+  checksum: 4bbbf8e140d589aca345230aaac65ac6e1504a154a728869dfe4f5a2cc3e44d3
 - filename: modules/autopilot/variables.tf
   checksum: 8ae60524faa3d5d0e85fb73718d938520096a3a708287eb5f81f5d6447122484
 - filename: modules/autopilot/main.tf

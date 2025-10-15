@@ -52,6 +52,8 @@ resource "google_container_cluster" "cluster" {
   ip_allocation_policy {
     cluster_secondary_range_name  = try(var.subnet.pods_range_name, "pods")
     services_secondary_range_name = try(var.subnet.services_range_name, "services")
+    # This will fail for IPV6_ONLY subnets, at least until that is a valid GKE option
+    stack_type = replace(data.google_compute_subnetwork.subnet.stack_type, "_ONLY", "")
   }
 
   dynamic "node_pool_auto_config" {
@@ -82,6 +84,16 @@ resource "google_container_cluster" "cluster" {
 
   confidential_nodes {
     enabled = try(var.features.confidential_nodes, false)
+  }
+
+
+  control_plane_endpoints_config {
+    dns_endpoint_config {
+      allow_external_traffic = false
+    }
+    ip_endpoints_config {
+      enabled = true
+    }
   }
 
   private_cluster_config {
@@ -118,10 +130,13 @@ resource "google_container_cluster" "cluster" {
     }
   }
 
+  gateway_api_config {
+    channel = try(var.features.gateway_api, true) ? "CHANNEL_STANDARD" : "CHANNEL_DISABLED"
+  }
+
   lifecycle {
     ignore_changes = [
       initial_node_count,
-      resource_labels,
     ]
   }
 
