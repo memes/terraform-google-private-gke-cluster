@@ -1,18 +1,21 @@
-"""Test fixture for service account module with display name and description."""
+"""Test fixture for service account module with GAR access."""
 
 import pathlib
 import re
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import Any
 
 import pytest
-from google.cloud import iam_admin_v1, resourcemanager_v3
+from google.cloud import artifactregistry_v1, iam_admin_v1, resourcemanager_v3
 
-from .conftest import run_tofu_in_workspace
+from tests import run_tf_in_workspace
 
-FIXTURE_NAME = "sa-nm-desc"
-EXPECTED_DISPLAY_NAME = "A GKE ready test account from tofu"
-EXPECTED_DESCRIPTION = "A test account provisioned by pytest and tofu just for unit testing purposes"
+FIXTURE_NAME = "sa-gar"
+FIXTURE_LABELS = {
+    "fixture": FIXTURE_NAME,
+}
+EXPECTED_DISPLAY_NAME = "A test account with GAR access"
+EXPECTED_DESCRIPTION = "A test account with GAR access provisioned by pytest and tofu just for unit testing purposes"
 EXPECTED_PROJECT_ROLES = [
     "roles/container.defaultNodeServiceAccount",
     "roles/stackdriver.resourceMetadata.writer",
@@ -26,20 +29,40 @@ def fixture_name(prefix: str) -> str:
 
 
 @pytest.fixture(scope="module")
+def fixture_labels(labels: dict[str, str]) -> dict[str, str]:
+    """Return a dict of labels for this test module."""
+    return FIXTURE_LABELS | labels
+
+
+@pytest.fixture(scope="module")
+def ar_repo(
+    ar_builder: Callable[..., str],
+    fixture_name: str,
+    fixture_labels: dict[str, str],
+) -> str:
+    """Build an OCI Artifact Registry for the test case."""
+    return ar_builder(name=fixture_name, labels=fixture_labels)
+
+
+@pytest.fixture(scope="module")
 def fixture_output(
-    sa_fixture_dir: pathlib.Path,
+    sa_fixture_dir: Callable[[str], pathlib.Path],
     project_id: str,
     fixture_name: str,
+    ar_repo: str,
 ) -> Generator[dict[str, Any], None, None]:
     """Create service account for test case."""
-    with run_tofu_in_workspace(
-        fixture=sa_fixture_dir,
-        workspace=FIXTURE_NAME,
+    assert ar_repo
+    with run_tf_in_workspace(
+        fixture=sa_fixture_dir(FIXTURE_NAME),
         tfvars={
             "project_id": project_id,
             "name": fixture_name,
             "display_name": EXPECTED_DISPLAY_NAME,
             "description": EXPECTED_DESCRIPTION,
+            "repositories": [
+                ar_repo,
+            ],
         },
     ) as output:
         yield output
@@ -92,3 +115,38 @@ def test_project_roles(
         for binding in sa_bindings:
             assert binding
             assert sa_member in binding.members
+
+
+def test_ar_roles(
+    ar_client: artifactregistry_v1.ArtifactRegistryClient,
+    fixture_output: dict[str, Any],
+    ar_repo: str,
+) -> None:
+    """Verify the service account has expected project roles."""
+    assert ar_repo
+    sa_member = fixture_output["member"]
+    repo_components = re.match(
+        r"^(?P<location>[a-z]{2,}(?:-[a-z]+[1-9])?)-docker\.pkg\.dev/(?P<project>[^/]+)/(?P<repository>[^/]+)",
+        ar_repo,
+    )
+    assert repo_components
+    repo_components = repo_components.groupdict()
+    policy = ar_client.get_iam_policy(
+        request={
+            "resource": ar_client.repository_path(
+                project=repo_components["project"],
+                location=repo_components["location"],
+                repository=repo_components["repository"],
+            ),
+        },
+    )
+    assert policy
+    bindings = policy.bindings
+    assert bindings
+    assert len(bindings) > 0
+    sa_bindings = [binding for binding in bindings if binding.role == "roles/artifactregistry.reader"]
+    assert sa_bindings
+    assert len(sa_bindings) == 1
+    for binding in sa_bindings:
+        assert binding
+        assert sa_member in binding.members

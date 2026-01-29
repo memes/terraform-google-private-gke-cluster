@@ -1,12 +1,11 @@
 """Common testing fixtures."""
 
 import base64
-import json
 import os
 import pathlib
-import subprocess
+import shutil
 import tempfile
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import Any, cast
 
@@ -15,7 +14,11 @@ import google.auth.credentials
 import google.auth.transport.requests
 import kubernetes.client
 import pytest
-from google.cloud import artifactregistry_v1, container_v1, iam_admin_v1, resourcemanager_v3
+import requests
+from google.api_core import exceptions
+from google.cloud import compute_v1, container_v1, resourcemanager_v3
+
+from tests import handle_extended_operation, skip_destroy_phase
 
 DEFAULT_PREFIX = "pgke"
 DEFAULT_LABELS = {
@@ -24,6 +27,7 @@ DEFAULT_LABELS = {
     "driver": "pytest",
 }
 DEFAULT_REGION = "us-west1"
+DEFAULT_TF_STATE_PREFIX = "tests/terraform-google-private-gke-cluster"
 
 
 @pytest.fixture(scope="session")
@@ -74,7 +78,8 @@ def labels() -> dict[str, str]:
 def region() -> str:
     """Return the Compute Engine region to use for tests.
 
-    Preference will be given to the environment variables TEST_GOOGLE_REGION with fallback to 'us-west1'.
+    Preference will be given to the environment variable TEST_GOOGLE_REGION with fallback to the default value of
+    'us-central1'.
     """
     region = os.getenv("TEST_GOOGLE_REGION", DEFAULT_REGION)
     if region:
@@ -86,196 +91,188 @@ def region() -> str:
 
 
 @pytest.fixture(scope="session")
-def root_fixture_dir() -> pathlib.Path:
-    """Return the fully-qualified directory at the fixture to exercise the root module."""
-    root_fixture_dir = pathlib.Path(__file__).parent.joinpath("fixtures/root").resolve()
-    assert root_fixture_dir.exists()
-    assert root_fixture_dir.is_dir()
-    assert root_fixture_dir.joinpath("main.tf").exists()
-    assert root_fixture_dir.joinpath("outputs.tf").exists()
-    assert root_fixture_dir.joinpath("variables.tf").exists()
-    return root_fixture_dir
+def tf_state_bucket() -> str:
+    """Return the Google Cloud Storage bucket name to use for tofu/terraform state files."""
+    bucket = os.getenv("TEST_GOOGLE_TF_STATE_BUCKET")
+    if bucket:
+        bucket = bucket.strip()
+    assert bucket
+    return bucket
 
 
 @pytest.fixture(scope="session")
-def sa_fixture_dir() -> pathlib.Path:
-    """Return the fully-qualified directory at the fixture to exercise the sa module."""
-    sa_fixture_dir = pathlib.Path(__file__).parent.joinpath("fixtures/sa").resolve()
-    assert sa_fixture_dir.exists()
-    assert sa_fixture_dir.is_dir()
-    assert sa_fixture_dir.joinpath("main.tf").exists()
-    assert sa_fixture_dir.joinpath("outputs.tf").exists()
-    assert sa_fixture_dir.joinpath("variables.tf").exists()
-    return sa_fixture_dir
+def tf_state_prefix() -> str:
+    """Return the prefix to use for tofu/terraform state files in bucket.
 
-
-@pytest.fixture(scope="session")
-def autopilot_fixture_dir() -> pathlib.Path:
-    """Return the fully-qualified directory at the fixture to exercise the autopilot module."""
-    autopilot_fixture_dir = pathlib.Path(__file__).parent.joinpath("fixtures/autopilot").resolve()
-    assert autopilot_fixture_dir.exists()
-    assert autopilot_fixture_dir.is_dir()
-    assert autopilot_fixture_dir.joinpath("main.tf").exists()
-    assert autopilot_fixture_dir.joinpath("outputs.tf").exists()
-    assert autopilot_fixture_dir.joinpath("variables.tf").exists()
-    return autopilot_fixture_dir
-
-
-@pytest.fixture(scope="session")
-def gar_fixture_dir() -> pathlib.Path:
-    """Return the fully-qualified directory at the fixture to create a testing GAR module."""
-    gar_fixture_dir = pathlib.Path(__file__).parent.joinpath("fixtures/gar").resolve()
-    assert gar_fixture_dir.exists()
-    assert gar_fixture_dir.is_dir()
-    assert gar_fixture_dir.joinpath("main.tf").exists()
-    assert gar_fixture_dir.joinpath("outputs.tf").exists()
-    assert gar_fixture_dir.joinpath("variables.tf").exists()
-    return gar_fixture_dir
-
-
-@pytest.fixture(scope="session")
-def vpc_fixture_dir() -> pathlib.Path:
-    """Return the fully-qualified directory at the fixture to create a testing VPC module."""
-    vpc_fixture_dir = pathlib.Path(__file__).parent.joinpath("fixtures/vpc").resolve()
-    assert vpc_fixture_dir.exists()
-    assert vpc_fixture_dir.is_dir()
-    assert vpc_fixture_dir.joinpath("main.tf").exists()
-    assert vpc_fixture_dir.joinpath("outputs.tf").exists()
-    assert vpc_fixture_dir.joinpath("variables.tf").exists()
-    return vpc_fixture_dir
-
-
-@pytest.fixture(scope="session")
-def kubeconfig_fixture_dir() -> pathlib.Path:
-    """Return the fully-qualified directory at the fixture to create a testing kubeconfig module."""
-    kubeconfig_fixture_dir = pathlib.Path(__file__).parent.joinpath("fixtures/kubeconfig").resolve()
-    assert kubeconfig_fixture_dir.exists()
-    assert kubeconfig_fixture_dir.is_dir()
-    assert kubeconfig_fixture_dir.joinpath("main.tf").exists()
-    assert kubeconfig_fixture_dir.joinpath("outputs.tf").exists()
-    assert kubeconfig_fixture_dir.joinpath("variables.tf").exists()
-    return kubeconfig_fixture_dir
-
-
-def skip_destroy_phase() -> bool:
-    """Determine if tofu destroy phase should be skipped for successful fixtures."""
-    return os.getenv("TEST_SKIP_DESTROY_PHASE", "False").lower() in ["true", "t", "yes", "y", "1"]
-
-
-@contextmanager
-def run_tofu_in_workspace(
-    fixture: pathlib.Path,
-    workspace: str | None,
-    tfvars: dict[str, Any] | None,
-) -> Generator[dict[str, Any], None, None]:
-    """Execute tofu init/apply/destroy lifecycle for a fixture in an optional workspace, yielding the output post-apply.
-
-    NOTE: Resources will not be destroyed if the test case raises an error.
+    Preference will be given to the variable TEST_GOOGLE_TF_STATE_PREFIX with fallback to the default value of
+    'tests/terraform-google-f5-bigip-ha'.
     """
-    if tfvars is None:
-        tfvars = {}
-    tf_command = os.getenv("TEST_TF_COMMAND", "tofu")
-    if workspace is not None and workspace != "":
-        subprocess.run(
-            [
-                tf_command,
-                f"-chdir={fixture!s}",
-                "workspace",
-                "select",
-                "-or-create",
-                workspace,
-            ],
-            check=True,
-            capture_output=True,
-        )
-    subprocess.run(
-        [
-            tf_command,
-            f"-chdir={fixture!s}",
-            "init",
-            "-no-color",
-        ],
-        check=True,
-        capture_output=True,
-    )
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        prefix="tfvars",
-        suffix=".json",
-        encoding="utf-8",
-        delete_on_close=False,
-        delete=True,
-    ) as tfvar_file:
-        json.dump(tfvars, tfvar_file, ensure_ascii=False, indent=2)
-        tfvar_file.close()
-        subprocess.run(
-            [
-                tf_command,
-                f"-chdir={fixture!s}",
-                "apply",
-                "-no-color",
-                "-auto-approve",
-                f"-var-file={tfvar_file.name}",
-            ],
-            check=True,
-            capture_output=True,
-        )
-        output = subprocess.run(
-            [
-                tf_command,
-                f"-chdir={fixture!s}",
-                "output",
-                "-no-color",
-                "-json",
-            ],
-            check=True,
-            capture_output=True,
-        )
-        try:
-            yield {k: v["value"] for k, v in json.loads(output.stdout).items()}
-            if not skip_destroy_phase():
-                subprocess.run(
-                    [
-                        tf_command,
-                        f"-chdir={fixture!s}",
-                        "destroy",
-                        "-no-color",
-                        "-auto-approve",
-                        f"-var-file={tfvar_file.name}",
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-        finally:
-            subprocess.run(
-                [
-                    tf_command,
-                    f"-chdir={fixture!s}",
-                    "workspace",
-                    "select",
-                    "default",
-                ],
-                check=True,
-                capture_output=True,
-            )
+    prefix = os.getenv("TEST_GOOGLE_TF_STATE_PREFIX", DEFAULT_TF_STATE_PREFIX)
+    if prefix:
+        prefix = prefix.strip()
+    if not prefix:
+        prefix = DEFAULT_TF_STATE_PREFIX
+    assert prefix
+    return prefix
 
 
 @pytest.fixture(scope="session")
-def iam_client() -> iam_admin_v1.IAMClient:
-    """Return an IAM client."""
-    return iam_admin_v1.IAMClient()
+def backend_tf_builder(tf_state_bucket: str, tf_state_prefix: str) -> Callable[[pathlib.Path, str], None]:
+    """Create or overwrite a _backend.tf file in the provided fixture_dir that configures GCS backend for state."""
+
+    def _backend_tf(fixture_dir: pathlib.Path, name: str) -> None:
+        assert fixture_dir.exists()
+        assert name
+        fixture_dir.joinpath("_backend.tf").write_text(
+            "\n".join(
+                [
+                    "terraform {",
+                    '  backend "gcs" {',
+                    f'    bucket = "{tf_state_bucket}"',
+                    f'    prefix = "{tf_state_prefix}/{name}"',
+                    "  }",
+                    "}",
+                ],
+            ),
+        )
+
+    return _backend_tf
+
+
+@pytest.fixture(scope="session")
+def common_fixture_dir_ignores() -> Callable[[Any, list[str]], set[str]]:
+    """Return a set of ignore patterns that are unrelated to module sources or supporting files."""
+    return shutil.ignore_patterns(".*", "*.md", "*.toml", "uv.lock", "tests")
+
+
+@pytest.fixture(scope="session")
+def root_fixture_dir(
+    tmp_path_factory: pytest.TempPathFactory,
+    backend_tf_builder: Callable[..., None],
+    common_fixture_dir_ignores: Callable[[Any, list[str]], set[str]],
+) -> Callable[[str], pathlib.Path]:
+    """Return a builder that makes a copy of the root module with backend configured appropriately."""
+    root_module_dir = pathlib.Path(__file__).parent.parent.resolve()
+    assert root_module_dir.exists()
+    assert root_module_dir.is_dir()
+    assert root_module_dir.joinpath("main.tf").exists()
+    assert root_module_dir.joinpath("outputs.tf").exists()
+    assert root_module_dir.joinpath("variables.tf").exists()
+
+    def _builder(name: str) -> pathlib.Path:
+        fixture_dir = tmp_path_factory.mktemp(name)
+        shutil.copytree(
+            src=root_module_dir,
+            dst=fixture_dir,
+            dirs_exist_ok=True,
+            ignore=common_fixture_dir_ignores,
+        )
+        backend_tf_builder(
+            fixture_dir=fixture_dir,
+            name=name,
+        )
+        return fixture_dir
+
+    return _builder
+
+
+@pytest.fixture(scope="session")
+def sa_fixture_dir(
+    tmp_path_factory: pytest.TempPathFactory,
+    backend_tf_builder: Callable[..., None],
+    common_fixture_dir_ignores: Callable[[Any, list[str]], set[str]],
+) -> Callable[[str], pathlib.Path]:
+    """Return a builder that makes a copy of the sa module with backend configured appropriately."""
+    sa_module_dir = pathlib.Path(__file__).parent.parent.joinpath("modules/sa").resolve()
+    assert sa_module_dir.exists()
+    assert sa_module_dir.is_dir()
+    assert sa_module_dir.joinpath("main.tf").exists()
+    assert sa_module_dir.joinpath("outputs.tf").exists()
+    assert sa_module_dir.joinpath("variables.tf").exists()
+
+    def _builder(name: str) -> pathlib.Path:
+        fixture_dir = tmp_path_factory.mktemp(name)
+        shutil.copytree(
+            src=sa_module_dir,
+            dst=fixture_dir,
+            dirs_exist_ok=True,
+            ignore=common_fixture_dir_ignores,
+        )
+        backend_tf_builder(
+            fixture_dir=fixture_dir,
+            name=name,
+        )
+        return fixture_dir
+
+    return _builder
+
+
+@pytest.fixture(scope="session")
+def autopilot_fixture_dir(
+    tmp_path_factory: pytest.TempPathFactory,
+    backend_tf_builder: Callable[..., None],
+    common_fixture_dir_ignores: Callable[[Any, list[str]], set[str]],
+) -> Callable[[str], pathlib.Path]:
+    """Return a builder that makes a copy of the autopilot module with backend configured appropriately."""
+    autopilot_module_dir = pathlib.Path(__file__).parent.parent.joinpath("modules/autopilot").resolve()
+    assert autopilot_module_dir.exists()
+    assert autopilot_module_dir.is_dir()
+    assert autopilot_module_dir.joinpath("main.tf").exists()
+    assert autopilot_module_dir.joinpath("outputs.tf").exists()
+    assert autopilot_module_dir.joinpath("variables.tf").exists()
+
+    def _builder(name: str) -> pathlib.Path:
+        fixture_dir = tmp_path_factory.mktemp(name)
+        shutil.copytree(
+            src=autopilot_module_dir,
+            dst=fixture_dir,
+            dirs_exist_ok=True,
+            ignore=common_fixture_dir_ignores,
+        )
+        backend_tf_builder(
+            fixture_dir=fixture_dir,
+            name=name,
+        )
+        return fixture_dir
+
+    return _builder
+
+
+@pytest.fixture(scope="session")
+def kubeconfig_fixture_dir(
+    tmp_path_factory: pytest.TempPathFactory,
+    backend_tf_builder: Callable[..., None],
+    common_fixture_dir_ignores: Callable[[Any, list[str]], set[str]],
+) -> Callable[[str], pathlib.Path]:
+    """Return a builder that makes a copy of the kubeconfig module with backend configured appropriately."""
+    kubeconfig_module_dir = pathlib.Path(__file__).parent.parent.joinpath("modules/kubeconfig").resolve()
+    assert kubeconfig_module_dir.exists()
+    assert kubeconfig_module_dir.is_dir()
+    assert kubeconfig_module_dir.joinpath("main.tf").exists()
+    assert kubeconfig_module_dir.joinpath("outputs.tf").exists()
+    assert kubeconfig_module_dir.joinpath("variables.tf").exists()
+
+    def _builder(name: str) -> pathlib.Path:
+        fixture_dir = tmp_path_factory.mktemp(name)
+        shutil.copytree(
+            src=kubeconfig_module_dir,
+            dst=fixture_dir,
+            dirs_exist_ok=True,
+            ignore=common_fixture_dir_ignores,
+        )
+        backend_tf_builder(
+            fixture_dir=fixture_dir,
+            name=name,
+        )
+        return fixture_dir
+
+    return _builder
 
 
 @pytest.fixture(scope="session")
 def projects_client() -> resourcemanager_v3.ProjectsClient:
     """Return a Resource Manager Projects client."""
     return resourcemanager_v3.ProjectsClient()
-
-
-@pytest.fixture(scope="session")
-def gar_client() -> artifactregistry_v1.ArtifactRegistryClient:
-    """Return a GAR client."""
-    return artifactregistry_v1.ArtifactRegistryClient()
 
 
 @pytest.fixture(scope="session")
@@ -324,3 +321,221 @@ def kubernetes_api_client(
         client = kubernetes.client.ApiClient(configuration=config)
         assert client
         yield client
+
+
+@pytest.fixture(scope="session")
+def networks_client() -> compute_v1.NetworksClient:
+    """Return an initialized Compute Engine v1 Networks API client."""
+    return compute_v1.NetworksClient()
+
+
+@pytest.fixture(scope="session")
+def subnetworks_client() -> compute_v1.SubnetworksClient:
+    """Return an initialized Compute Engine v1 Subnetworks API client."""
+    return compute_v1.SubnetworksClient()
+
+
+@pytest.fixture(scope="session")
+def network_builder(
+    request: pytest.FixtureRequest,
+    project_id: str,
+    networks_client: compute_v1.NetworksClient,
+) -> Callable[[str, str], str]:
+    """Return a builder of global VPC networks."""
+
+    def _builder(name: str, description: str | None = None) -> str:
+        """Create a VPC network with given name, returning it's self-link, with automatic deletion after use."""
+        assert name
+        if description is None:
+            description = "VPC network for automated BIG-IP HA repo testing."
+
+        def _cleanup() -> None:
+            if not skip_destroy_phase():
+                handle_extended_operation(
+                    networks_client.delete(
+                        request=compute_v1.DeleteNetworkRequest(
+                            network=name,
+                            project=project_id,
+                        ),
+                    ),
+                )
+
+        try:
+            network = networks_client.get(
+                request=compute_v1.GetNetworkRequest(
+                    network=name,
+                    project=project_id,
+                ),
+            )
+            self_link = network.self_link
+        except exceptions.NotFound:
+            handle_extended_operation(
+                networks_client.insert(
+                    request=compute_v1.InsertNetworkRequest(
+                        network_resource=compute_v1.Network(
+                            name=name,
+                            auto_create_subnetworks=False,
+                            description=description,
+                        ),
+                        project=project_id,
+                    ),
+                ),
+            )
+            self_link = f"https://www.googleapis.com/compute/v1/projects/{project_id}/global/networks/{name}"
+
+        request.addfinalizer(_cleanup)
+        return self_link
+
+    return _builder
+
+
+@pytest.fixture(scope="session")
+def subnet_builder(
+    request: pytest.FixtureRequest,
+    project_id: str,
+    region: str,
+    subnetworks_client: compute_v1.SubnetworksClient,
+) -> Callable[[str, str, str | None, dict[str, str] | None, str | None], str]:
+    """Return a builder of subnets."""
+
+    def _builder(
+        name: str,
+        network_self_link: str,
+        primary_cidr: str | None = None,
+        secondaries: dict[str, str] | None = None,
+        description: str | None = None,
+    ) -> str:
+        """Create a VPC subnetwork with given name, returning it's self-link, with automatic deletion after use."""
+        assert name
+        assert network_self_link
+        if primary_cidr is None:
+            primary_cidr = "172.16.0.0/24"
+        if not secondaries:
+            secondaries = {
+                "pods": "10.0.0.0/16",
+                "services": "10.100.0.0/20",
+            }
+        if description is None:
+            description = "VPC subnet for automated BIG-IP HA repo testing."
+
+        def _cleanup() -> None:
+            if not skip_destroy_phase():
+                handle_extended_operation(
+                    subnetworks_client.delete(
+                        request=compute_v1.DeleteSubnetworkRequest(
+                            subnetwork=name,
+                            project=project_id,
+                            region=region,
+                        ),
+                    ),
+                )
+
+        try:
+            subnet = subnetworks_client.get(
+                request=compute_v1.GetSubnetworkRequest(
+                    subnetwork=name,
+                    project=project_id,
+                    region=region,
+                ),
+            )
+            self_link = subnet.self_link
+        except exceptions.NotFound:
+            handle_extended_operation(
+                subnetworks_client.insert(
+                    request=compute_v1.InsertSubnetworkRequest(
+                        subnetwork_resource=compute_v1.Subnetwork(
+                            name=name,
+                            description=description,
+                            network=network_self_link,
+                            ip_cidr_range=primary_cidr,
+                            region=region,
+                            secondary_ip_ranges=[
+                                compute_v1.SubnetworkSecondaryRange(
+                                    ip_cidr_range=v,
+                                    range_name=k,
+                                )
+                                for k, v in secondaries
+                            ],
+                        ),
+                        project=project_id,
+                        region=region,
+                    ),
+                ),
+            )
+            self_link = (
+                f"https://www.googleapis.com/compute/v1/projects/{project_id}/regions/{region}/subnetworks/{name}"
+            )
+
+        request.addfinalizer(_cleanup)
+        return self_link
+
+    return _builder
+
+
+@pytest.fixture(scope="session")
+def firewalls_client() -> compute_v1.FirewallsClient:
+    """Return a reusable Compute Engine v1 Firewalls Client API client."""
+    return compute_v1.FirewallsClient()
+
+
+@pytest.fixture(scope="session")
+def source_cidr() -> str:
+    """Return the public IPv4 address of this testing machine, as reported by AWS, to use as testing source CIDR."""
+    ip_address = requests.get("https://checkip.amazonaws.com").text.strip()
+    assert ip_address
+    return f"{ip_address}/32"
+
+
+@pytest.fixture(scope="session")
+def allow_ingress_firewall_builder(
+    request: pytest.FixtureRequest,
+    project_id: str,
+    firewalls_client: compute_v1.FirewallsClient,
+    source_cidr: str,
+) -> Callable[[str, str], str]:
+    """Return a builder of VPC network firewalls that allow ingress to everything from the source address."""
+
+    def _builder(network: str, name: str) -> str:
+        """Create a Firewall Rule on the network."""
+
+        def _cleanup() -> None:
+            if not skip_destroy_phase():
+                firewalls_client.delete(
+                    request=compute_v1.DeleteFirewallRequest(
+                        firewall=name,
+                        project=project_id,
+                    ),
+                )
+
+        try:
+            rule = firewalls_client.get(
+                request=compute_v1.GetFirewallRequest(
+                    firewall=name,
+                    project=project_id,
+                ),
+            )
+        except exceptions.NotFound:
+            rule = firewalls_client.insert(
+                request=compute_v1.InsertFirewallRequest(
+                    firewall_resource=compute_v1.Firewall(
+                        name=name,
+                        description="Allow ingress from testing workstation",
+                        direction="INGRESS",
+                        priority=500,
+                        network=network,
+                        allowed=[
+                            compute_v1.Allowed(
+                                I_p_protocol="all",
+                            ),
+                        ],
+                        source_ranges=[
+                            source_cidr,
+                        ],
+                    ),
+                    project=project_id,
+                ),
+            )
+        request.addfinalizer(_cleanup)
+        return rule.self_link
+
+    return _builder

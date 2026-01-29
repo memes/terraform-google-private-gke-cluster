@@ -1,18 +1,18 @@
-"""Test fixture for service account module with minimal configuration."""
+"""Test fixture for service account module with display name and description."""
 
 import pathlib
 import re
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import Any
 
 import pytest
 from google.cloud import iam_admin_v1, resourcemanager_v3
 
-from .conftest import run_tofu_in_workspace
+from tests import run_tf_in_workspace
 
-FIXTURE_NAME = "sa-min"
-EXPECTED_DISPLAY_NAME = "Generated GKE Service Account"
-EXPECTED_DESCRIPTION = "A Terraform generated Service Account suitable for use by GKE nodes. The service account is intended to have minimal roles required to log and report base metrics to Google Cloud Operations."  # noqa: E501
+FIXTURE_NAME = "sa-nm-desc"
+EXPECTED_DISPLAY_NAME = "A GKE ready test account from tofu"
+EXPECTED_DESCRIPTION = "A test account provisioned by pytest and tofu just for unit testing purposes"
 EXPECTED_PROJECT_ROLES = [
     "roles/container.defaultNodeServiceAccount",
     "roles/stackdriver.resourceMetadata.writer",
@@ -27,17 +27,18 @@ def fixture_name(prefix: str) -> str:
 
 @pytest.fixture(scope="module")
 def fixture_output(
-    sa_fixture_dir: pathlib.Path,
+    sa_fixture_dir: Callable[[str], pathlib.Path],
     project_id: str,
     fixture_name: str,
 ) -> Generator[dict[str, Any], None, None]:
     """Create service account for test case."""
-    with run_tofu_in_workspace(
-        fixture=sa_fixture_dir,
-        workspace=FIXTURE_NAME,
+    with run_tf_in_workspace(
+        fixture=sa_fixture_dir(FIXTURE_NAME),
         tfvars={
             "project_id": project_id,
             "name": fixture_name,
+            "display_name": EXPECTED_DISPLAY_NAME,
+            "description": EXPECTED_DESCRIPTION,
         },
     ) as output:
         yield output

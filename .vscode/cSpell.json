@@ -4,6 +4,7 @@
     "language": "en",
     "words": [
         "abac",
+        "addfinalizer",
         "appspot",
         "artifactregistry",
         "autoprovisioning",
@@ -46,6 +47,7 @@
         "sartifacts",
         "snat",
         "stackdriver",
+        "subnetworks",
         "subsetting",
         "sysctls",
         "tflint",
