@@ -3,7 +3,11 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 7.1"
+      version = ">= 7.18"
+    }
+    google-beta = {
+      source  = "hashicorp/google"
+      version = ">= 7.18"
     }
   }
 }
@@ -13,20 +17,20 @@ data "google_compute_subnetwork" "subnet" {
 }
 
 resource "google_container_cluster" "cluster" {
-  project                  = var.project_id
-  name                     = var.name
-  description              = coalesce(var.description, "Private Autopilot GKE cluster for demo")
-  location                 = data.google_compute_subnetwork.subnet.region
-  enable_autopilot         = true
-  networking_mode          = "VPC_NATIVE"
-  network                  = data.google_compute_subnetwork.subnet.network
-  resource_labels          = var.labels
-  subnetwork               = data.google_compute_subnetwork.subnet.self_link
-  enable_l4_ilb_subsetting = true
-  datapath_provider        = "ADVANCED_DATAPATH"
-  logging_service          = "logging.googleapis.com/kubernetes"
-  monitoring_service       = "monitoring.googleapis.com/kubernetes"
-  deletion_protection      = false
+  provider                              = google-beta
+  project                               = var.project_id
+  name                                  = var.name
+  description                           = coalesce(var.description, "Private Autopilot GKE cluster for demo")
+  location                              = data.google_compute_subnetwork.subnet.region
+  enable_autopilot                      = true
+  networking_mode                       = "VPC_NATIVE"
+  network                               = data.google_compute_subnetwork.subnet.network
+  resource_labels                       = var.labels
+  subnetwork                            = data.google_compute_subnetwork.subnet.self_link
+  enable_l4_ilb_subsetting              = true
+  disable_l4_lb_firewall_reconciliation = try(var.features.disable_auto_lb_firewall, false) ? true : null
+  datapath_provider                     = "ADVANCED_DATAPATH"
+  deletion_protection                   = false
 
   master_auth {
     client_certificate_config {
@@ -70,10 +74,12 @@ resource "google_container_cluster" "cluster" {
   }
 
   dynamic "master_authorized_networks_config" {
-    for_each = try(length(var.master_authorized_networks), 0) > 0 ? { enabled = true } : {}
+    for_each = try(length(var.control_plane_access.authorized_cidrs), 0) > 0 ? { enabled = var.control_plane_access.authorized_cidrs } : {}
     content {
+      gcp_public_cidrs_access_enabled      = try(var.control_plane_access.gcp_public_cidrs_access, false)
+      private_endpoint_enforcement_enabled = true
       dynamic "cidr_blocks" {
-        for_each = var.master_authorized_networks
+        for_each = master_authorized_networks_config.value
         content {
           cidr_block   = cidr_blocks.value.cidr_block
           display_name = cidr_blocks.value.display_name
@@ -88,29 +94,37 @@ resource "google_container_cluster" "cluster" {
 
 
   control_plane_endpoints_config {
-    dns_endpoint_config {
-      allow_external_traffic = false
+    dynamic "dns_endpoint_config" {
+      for_each = try(var.control_plane_access.enable_dns_access, null) == null || var.control_plane_access.enable_dns_access ? { enabled = true } : {}
+      content {
+        allow_external_traffic    = try(var.control_plane_access.external_dns_access, true)
+        enable_k8s_certs_via_dns  = false
+        enable_k8s_tokens_via_dns = false
+      }
     }
     ip_endpoints_config {
-      enabled = true
+      enabled = try(var.control_plane_access.enable_ip_access, false)
     }
   }
 
   private_cluster_config {
     enable_private_nodes    = true
-    enable_private_endpoint = try(var.options.private_endpoint, true) ? true : null
-    master_ipv4_cidr_block  = try(var.subnet.master_cidr, "192.168.0.0/28")
-    master_global_access_config {
-      enabled = try(var.options.master_global_access, false)
+    enable_private_endpoint = true
+    master_ipv4_cidr_block  = coalesce(try(var.control_plane_access.master_cidr, "unspecified"), "unspecified") == "unspecified" ? null : var.control_plane_access.master_cidr
+    dynamic "master_global_access_config" {
+      for_each = try(var.control_plane_access.master_global_access, false) ? { enabled = true } : {}
+      content {
+        enabled = master_global_access_config.value
+      }
     }
   }
 
   release_channel {
-    channel = try(var.options.release_channel, "STABLE")
+    channel = try(var.options.release_channel, "REGULAR")
   }
 
   default_snat_status {
-    disabled = !try(var.options.default_snat, true)
+    disabled = !try(var.features.default_snat, true)
   }
 
   secret_manager_config {
@@ -120,18 +134,83 @@ resource "google_container_cluster" "cluster" {
     }
   }
 
-  dynamic "dns_config" {
-    for_each = var.dns == null ? {} : { dns = var.dns }
+  gateway_api_config {
+    channel = try(var.features.gateway_api, true) ? "CHANNEL_STANDARD" : "CHANNEL_DISABLED"
+  }
+
+  dynamic "fleet" {
+    for_each = coalesce(try(var.options.fleet, ""), "unspecified") == "unspecified" ? {} : { enabled = var.options.fleet }
     content {
-      cluster_dns                   = try(dns_config.value.cluster_dns, "CLOUD_DNS")
-      cluster_dns_scope             = "CLUSTER_SCOPE" # This is the only valid option for Autopilot clusters
-      cluster_dns_domain            = try(dns_config.value.cluster_dns_domain, "cluster.local")
-      additive_vpc_scope_dns_domain = try(dns_config.value.cluster_dns, "CLOUD_DNS") == "CLOUD_DNS" ? try(dns_config.value.additive_vpc_scope_dns_domain, null) : null
+      project = fleet.value
     }
   }
 
-  gateway_api_config {
-    channel = try(var.features.gateway_api, true) ? "CHANNEL_STANDARD" : "CHANNEL_DISABLED"
+  logging_config {
+    enable_components = [
+      "SYSTEM_COMPONENTS",
+      "WORKLOADS",
+    ]
+  }
+
+  monitoring_config {
+    enable_components = [
+      "SYSTEM_COMPONENTS",
+      "DAEMONSET",
+      "DEPLOYMENT",
+      "STATEFULSET",
+      "JOBSET",
+      "STORAGE",
+      "HPA",
+      "POD",
+      "CADVISOR",
+      "KUBELET",
+      "DCGM",
+    ]
+    advanced_datapath_observability_config {
+      enable_metrics = !try(var.features.dataplane_v2_advanced_observability, false)
+      enable_relay   = try(var.features.dataplane_v2_advanced_observability, false)
+    }
+    managed_prometheus {
+      enabled = try(var.features.managed_prometheus, true)
+    }
+  }
+
+  dynamic "managed_opentelemetry_config" {
+    for_each = try(var.features.managed_opentelemetry, false) ? { enabled = true } : {}
+    content {
+      scope = "COLLECTION_AND_INSTRUMENTATION_COMPONENTS"
+    }
+  }
+
+  addons_config {
+    gke_backup_agent_config {
+      enabled = false
+    }
+    gcp_filestore_csi_driver_config {
+      enabled = try(var.features.filestore_csi, true)
+    }
+    parallelstore_csi_driver_config {
+      enabled = try(var.features.parallelstore_csi, false)
+    }
+    lustre_csi_driver_config {
+      enabled = try(var.features.lustre_csi, false)
+    }
+    ray_operator_config {
+      enabled = try(var.features.ray_operator, false)
+      # When Ray is enabled, turn on logging and monitoring collectors
+      dynamic "ray_cluster_logging_config" {
+        for_each = try(var.features.ray_operator, false) ? { enabled = true } : {}
+        content {
+          enabled = ray_cluster_logging_config.value
+        }
+      }
+      dynamic "ray_cluster_monitoring_config" {
+        for_each = try(var.features.ray_operator, false) ? { enabled = true } : {}
+        content {
+          enabled = ray_cluster_monitoring_config.value
+        }
+      }
+    }
   }
 
   lifecycle {

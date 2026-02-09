@@ -37,11 +37,10 @@ variable "subnet" {
     self_link           = string
     pods_range_name     = optional(string, "pods")
     services_range_name = optional(string, "services")
-    master_cidr         = optional(string, "192.168.0.0/28")
   })
   nullable = false
   validation {
-    condition     = can(regex("^(?:https://www.googleapis.com/compute/v1/)?projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/regions/[a-z]{2,}-[a-z]{2,}[0-9]/subnetworks/[a-z]([a-z0-9-]+[a-z0-9])?$", var.subnet.self_link)) && coalesce(var.subnet.pods_range_name, "unspecified") != "unspecified" && coalesce(var.subnet.services_range_name, "unspecified") != "unspecified" && can(cidrhost(var.subnet.master_cidr, 1))
+    condition     = can(regex("^(?:https://www.googleapis.com/compute/v1/)?projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/regions/[a-z]{2,}-[a-z]{2,}[0-9]/subnetworks/[a-z]([a-z0-9-]+[a-z0-9])?$", var.subnet.self_link)) && coalesce(var.subnet.pods_range_name, "unspecified") != "unspecified" && coalesce(var.subnet.services_range_name, "unspecified") != "unspecified"
     error_message = "The subnet value must have a valid self_link URI, and non-empty pods and services names, and a valid master CIDR."
   }
   description = <<-EOD
@@ -51,18 +50,47 @@ variable "subnet" {
   EOD
 }
 
-variable "master_authorized_networks" {
-  type = list(object({
-    cidr_block   = string
-    display_name = string
-  }))
+variable "control_plane_access" {
+  type = object({
+    enable_dns_access       = optional(bool, true)
+    enable_ip_access        = optional(bool, false)
+    external_dns_access     = optional(bool, true)
+    gcp_public_cidrs_access = optional(bool, false)
+    master_global_access    = optional(bool, false)
+    master_cidr             = optional(string) #optional(string, "192.168.0.0/28")
+    authorized_cidrs = optional(list(object({
+      cidr_block   = string
+      display_name = string
+    })))
+  })
   nullable = true
   validation {
-    condition     = var.master_authorized_networks == null ? false : alltrue([for v in var.master_authorized_networks : can(cidrhost(v.cidr_block, 0)) && coalesce(v.display_name, "unspecified") != "unspecified"])
-    error_message = "Each master_authorized_networks value must have a valid cidr_block and display_name."
+    condition = var.control_plane_access == null ? true : (
+      (
+        var.control_plane_access.enable_dns_access == null ? true : var.control_plane_access.enable_dns_access
+      ) ||
+      (
+        var.control_plane_access.enable_ip_access == null ? false : var.control_plane_access.enable_ip_access
+      )
+      ) && (
+      coalesce(var.control_plane_access.master_cidr, "unspecified") == "unspecified" ? true : can(cidrhost(var.control_plane_access.master_cidr, 1))
+      ) && (
+      try(length(var.control_plane_access.authorized_cidrs), 0) == 0 ? true : alltrue([for v in var.control_plane_access.authorized_cidrs : can(cidrhost(v.cidr_block, 0)) && coalesce(v.display_name, "unspecified") != "unspecified"])
+    )
+    error_message = "At least one of enable_dns_access or enable_ip_access must be true, and, if present, master_cidr must be a valid CIDR, and each authorized_cidrs value must have a valid cidr_block and display_name."
+  }
+  default = {
+    enable_dns_access       = true
+    enable_ip_access        = false
+    external_dns_access     = true
+    gcp_public_cidrs_access = false
+    master_global_access    = false
+    master_cidr             = null #"192.168.0.0/28"
+    authorized_cidrs        = null
   }
   description = <<-EOD
-  A set of CIDRs that are permitted to reach the kubernetes API endpoints.
+  Defines the control-plane access options. By default, the cluster will allow API access via DNS endpoint from within
+  Google Cloud, and direct IP access is disabled. These options can be changed by overriding the default values.
   EOD
 }
 
@@ -89,48 +117,67 @@ variable "labels" {
   }
   default     = {}
   description = <<-EOD
-  An optional set of key:value string pairs that will be added to the Autopilot
-  resources.
+  An optional set of key:value string pairs that will be added to the Autopilot resources.
   EOD
 }
 
 variable "options" {
   type = object({
-    release_channel      = optional(string, "STABLE")
-    master_global_access = optional(bool, true)
-    private_endpoint     = optional(bool, false)
-    default_snat         = optional(bool, true)
+    release_channel = optional(string, "REGULAR")
+    fleet           = optional(string)
   })
-  nullable = false
+  nullable = true
+  validation {
+    condition     = var.options == null ? true : (contains(["RAPID", "REGULAR", "STABLE"], coalesce(var.options.release_channel, "REGULAR"))) && (coalesce(var.options.fleet, "unspecified") == "unspecified" ? true : can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.options.fleet)))
+    error_message = "The project_id variable must must be 6 to 30 lowercase letters, digits, or hyphens; it must start with a letter and cannot end with a hyphen."
+  }
   default = {
-    release_channel      = "STABLE"
-    master_global_access = true
-    private_endpoint     = true
-    default_snat         = true
+    release_channel = "REGULAR"
+    fleet           = null
   }
   description = <<-EOD
-  Defines the set of GKE options to use when provisioning the cluster. Default
-  values will initiate an Autopilot cluster from GKE's STABLE release channel,
-  with global flag enabled on the master access LB, and private RFC1918 endpoint.
+  Defines the set of GKE options to use when provisioning the cluster. Default values will initiate an Autopilot cluster
+  from GKE's REGULAR release channel that is not registered to an Enterprise GKE fleet. If you
+  want to use Privately Used Public IP addresses (PUPI) CIDRs for pods or services, set the default_snat flag to false.
   EOD
 }
 
 variable "features" {
   type = object({
-    binary_authorization = optional(bool, false)
-    confidential_nodes   = optional(bool, false)
-    secret_manager       = optional(bool, true)
-    gateway_api          = optional(bool, true)
+    default_snat                        = optional(bool, true)
+    binary_authorization                = optional(bool, false)
+    confidential_nodes                  = optional(bool, false)
+    secret_manager                      = optional(bool, true)
+    gateway_api                         = optional(bool, true)
+    dataplane_v2_advanced_observability = optional(bool, false)
+    filestore_csi                       = optional(bool, false)
+    parallelstore_csi                   = optional(bool, false)
+    lustre_csi                          = optional(bool, false)
+    ray_operator                        = optional(bool, false)
+    disable_auto_lb_firewall            = optional(bool, false)
+    managed_prometheus                  = optional(bool, true)
+    managed_opentelemetry               = optional(bool, false)
   })
   default = {
-    binary_authorization = false
-    confidential_nodes   = false
-    secret_manager       = true
-    gateway_api          = true
+    default_snat                        = true
+    binary_authorization                = false
+    confidential_nodes                  = false
+    secret_manager                      = true
+    gateway_api                         = true
+    dataplane_v2_advanced_observability = false
+    filestore_csi                       = false
+    parallelstore_csi                   = false
+    lustre_csi                          = false
+    ray_operator                        = false
+    disable_auto_lb_firewall            = false
+    managed_prometheus                  = true
+    managed_opentelemetry               = false
   }
   description = <<-EOD
-  The set of features that will be enabled on the Autopilot cluster. By default Secret Manager integration will be
-  enabled, but binary authorization and confidential worker nodes will be disabled.
+  The set of boolean feature flags that will be enabled on the Autopilot cluster. Unless modified, the cluster will be
+  created with Default SNAT, Secret Manager integration, Managed Prometheus, and Gateway API support enabled. Other features will be
+  disabled, including some CSIs that are typically enabled when creating a GKE cluster through the console.
+  NOTE: To use Privately Used Public IP addresses (PUPI) CIDRs for pods or services, set the default_snat flag to false.
   EOD
 }
 
@@ -147,20 +194,5 @@ variable "nap" {
   description = <<-EOD
   Configures cluster-scoped node auto-provisioning parameters for use with autopilot.
   Currently, only network tags can be specified.
-  EOD
-}
-
-variable "dns" {
-  type = object({
-    cluster_dns                   = optional(string, "CLOUD_DNS")
-    cluster_dns_scope             = optional(string, "CLUSTER_SCOPE")
-    cluster_dns_domain            = optional(string, "cluster.local")
-    additive_vpc_scope_dns_domain = optional(string)
-  })
-  default     = null
-  description = <<-EOD
-  An optional value to trigger integration of Cloud DNS as the preferred DNS
-  provider in the cluster. Default is null, which will create a cluster with
-  KubeDNS as the provider.
   EOD
 }

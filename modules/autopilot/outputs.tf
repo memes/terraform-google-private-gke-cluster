@@ -36,9 +36,9 @@ EOD
   ]
 }
 
-output "endpoint_url" {
+output "private_ip_endpoint_url" {
   sensitive   = true
-  value       = format("https://%s", google_container_cluster.cluster.private_cluster_config[0].private_endpoint)
+  value       = coalesce(google_container_cluster.cluster.private_cluster_config[0].private_endpoint, "unspecified") == "unspecified" ? null : format("https://%s", google_container_cluster.cluster.private_cluster_config[0].private_endpoint)
   description = <<-EOD
   The URL to use for master access.
 EOD
@@ -47,13 +47,7 @@ EOD
   ]
 }
 
-output "public_endpoint_url" {
-  sensitive   = true
-  value       = try(var.options.private_endpoint, true) ? null : format("https://%s", google_container_cluster.cluster.private_cluster_config[0].public_endpoint)
-  description = <<-EOD
-  The URL to use for master access.
-  EOD
-  depends_on = [
-    google_container_cluster.cluster,
-  ]
+output "dns_endpoint_url" {
+  sensitive = true
+  value     = coalesce(google_container_cluster.cluster.control_plane_endpoints_config[0].dns_endpoint_config[0].endpoint, "unspecified") == "unspecified" ? null : format("https://%s", google_container_cluster.cluster.control_plane_endpoints_config[0].dns_endpoint_config[0].endpoint)
 }
