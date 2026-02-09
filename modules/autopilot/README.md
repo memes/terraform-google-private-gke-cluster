@@ -10,7 +10,6 @@ This Terraform module creates a private GKE Autopilot cluster.
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.5 |
 | <a name="requirement_google"></a> [google](#requirement\_google) | >= 7.18 |
-| <a name="requirement_google-beta"></a> [google-beta](#requirement\_google-beta) | >= 7.18 |
 
 ## Modules
 
@@ -20,7 +19,7 @@ No modules.
 
 | Name | Type |
 |------|------|
-| [google-beta_google_container_cluster.cluster](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/google_container_cluster) | resource |
+| [google-beta_google_container_cluster.cluster](https://registry.terraform.io/providers/hashicorp/google-beta/latest/docs/resources/google_container_cluster) | resource |
 | [google_compute_subnetwork.subnet](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/compute_subnetwork) | data source |
 
 ## Inputs

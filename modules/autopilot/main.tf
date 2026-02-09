@@ -5,10 +5,6 @@ terraform {
       source  = "hashicorp/google"
       version = ">= 7.18"
     }
-    google-beta = {
-      source  = "hashicorp/google"
-      version = ">= 7.18"
-    }
   }
 }
 
@@ -16,6 +12,7 @@ data "google_compute_subnetwork" "subnet" {
   self_link = var.subnet.self_link
 }
 
+# tflint-ignore: terraform_required_providers
 resource "google_container_cluster" "cluster" {
   provider                              = google-beta
   project                               = var.project_id
