@@ -10,6 +10,7 @@
         "autoprovisioning",
         "cloudrun",
         "containerd",
+        "creds",
         "datapath",
         "direnv",
         "DOCKERHUB",
@@ -42,6 +43,7 @@
         "pgke",
         "postcondition",
         "preemptible",
+        "pytestconfig",
         "pytestmark",
         "resourcemanager",
         "sartifacts",
@@ -59,6 +61,7 @@
         "venv",
         "wontfix",
         "workdir",
+        "yamldecode",
         "yamllint"
     ],
     "flagWords": [

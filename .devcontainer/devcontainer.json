@@ -1,7 +1,7 @@
 {
     "name": "memes-terraform-google-private-gke-cluster",
     "build": {
-        "dockerfile": "dockerfile"
+        "dockerfile": "Dockerfile"
     },
     "features": {
         "ghcr.io/memes/devcontainers-features/direnv:1": {},
@@ -26,7 +26,6 @@
         "vscode": {
             "extensions": [
                 "Gruntfuggly.todo-tree",
-                "ms-python.vscode-pylance",
                 "ms-python.python",
                 "ms-python.debugpy",
                 "ms-python.vscode-python-envs",
@@ -37,7 +36,8 @@
                 "esbenp.prettier-vscode",
                 "DavidAnson.vscode-markdownlint",
                 "hashicorp.hcl",
-                "charliermarsh.ruff"
+                "charliermarsh.ruff",
+                "astral-sh.ty"
             ]
         }
     },
@@ -54,6 +54,6 @@
     },
     "updateRemoteUserUID": true,
     "mounts": [
-        "source=${localEnv:HOME}/.config/gcloud,target=/home/vscode/.config/gcloud,type=bind"
+        "source=${localEnv:HOME}/.config/gcloud,target=/home/vscode/.config/gcloud,type=bind,consistency=cached"
     ]
 }

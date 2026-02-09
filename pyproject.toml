@@ -22,8 +22,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pre-commit>=4.5.1",
-    "pyright[nodejs]>=1.1.408",
     "ruff>=0.14.14",
+    "ty>=0.0.15",
 ]
 
 [tool.ruff]
@@ -47,10 +47,6 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
-
 [tool.coverage.paths]
 source = ["tests"]
 
@@ -60,8 +56,14 @@ show_missing = true
 [tool.coverage.run]
 branch = true
 
-[tool.pytest.ini_options]
-addopts = "--import-mode=importlib --cov=tests --cov-report=term-missing -n auto --dist loadfile"
+[tool.pytest]
+addopts = [
+    "--import-mode=importlib",
+    "--cov=tests",
+    "--cov-report=term-missing",
+    "--numprocesses=auto",
+    "--dist=loadfile",
+]
 log_cli = true
 log_cli_level = "WARNING"
 log_cli_format = "%(asctime)s - %(levelname)s:%(name)s:%s(message)"

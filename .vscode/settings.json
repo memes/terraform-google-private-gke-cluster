@@ -12,6 +12,6 @@
             "source.organizeImports": "explicit"
         }
     },
-    "python.languageServer": "Pylance",
+    "python.languageServer": "None",
     "python.testing.pytestEnabled": true
 }
