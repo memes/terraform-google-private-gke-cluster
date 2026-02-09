@@ -45,11 +45,15 @@ repos:
           - -b
           - main
       - id: trailing-whitespace
-  - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.408
-    hooks:
-      - id: pyright
   - repo: https://github.com/thoughtworks/talisman
     rev: v1.37.0
     hooks:
       - id: talisman-commit
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty check
+        entry: uv run ty check
+        language: python
+        types: [python]
+        pass_filenames: true
