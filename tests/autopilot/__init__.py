@@ -7,7 +7,7 @@ from collections.abc import MutableSequence
 
 from google.cloud import container_v1
 
-from .gke_common_assertions import (
+from tests import (
     assert_anonymous_authentication_config,
     assert_compliance_posture_config,
     assert_default_authenticator_groups_config,
@@ -84,11 +84,11 @@ def assert_default_addons_config(addons_config: container_v1.AddonsConfig | None
     assert addons_config.dns_cache_config.enabled
     assert not addons_config.config_connector_config.enabled
     assert addons_config.gce_persistent_disk_csi_driver_config.enabled
-    assert addons_config.gcp_filestore_csi_driver_config.enabled
+    assert not addons_config.gcp_filestore_csi_driver_config.enabled
     assert not addons_config.gke_backup_agent_config.enabled
     assert addons_config.gcs_fuse_csi_driver_config.enabled
     assert addons_config.stateful_ha_config.enabled
-    assert addons_config.parallelstore_csi_driver_config.enabled
+    assert not addons_config.parallelstore_csi_driver_config.enabled
     assert not addons_config.ray_operator_config.enabled
     assert not addons_config.ray_operator_config.ray_cluster_logging_config.enabled
     assert not addons_config.ray_operator_config.ray_cluster_monitoring_config.enabled
@@ -103,7 +103,7 @@ def assert_default_cluster_autoscaling(
 ) -> None:
     """Raise an AssertionError if ClusterAutoscaling object does not meet default Autopilot module expectations."""
     assert cluster_autoscaling
-    assert cluster_autoscaling.enable_node_autoprovisioning  # pyright: ignore[reportAttributeAccessIssue]
+    assert cluster_autoscaling.enable_node_autoprovisioning
     assert (
         cluster_autoscaling.autoscaling_profile
         == container_v1.ClusterAutoscaling.AutoscalingProfile.OPTIMIZE_UTILIZATION
@@ -165,7 +165,7 @@ def assert_default_node_pools(node_pools: MutableSequence[container_v1.NodePool]
     """Raise an AssertionError if NodePool objects do no meet default Autopilot module expectations.
 
     NOTE: GKE Autopilot nodes are not directly influenced by the module, so just verify there is at least one pool. The
-    assert_default_node_pool_autoconfig function has the relevant tests.
+    assert_default_node_pool_auto_config function has the relevant tests.
     """
     # Only verify the object exists, since the quantity depends on other actions.
     assert node_pools is not None

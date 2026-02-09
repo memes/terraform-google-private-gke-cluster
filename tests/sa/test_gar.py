@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from google.cloud import artifactregistry_v1, iam_admin_v1, resourcemanager_v3
 
-from tests import run_tf_in_workspace
+from tests import run_tf_plan_apply_destroy
 
 FIXTURE_NAME = "sa-gar"
 FIXTURE_LABELS = {
@@ -35,16 +35,6 @@ def fixture_labels(labels: dict[str, str]) -> dict[str, str]:
 
 
 @pytest.fixture(scope="module")
-def ar_repo(
-    ar_builder: Callable[..., str],
-    fixture_name: str,
-    fixture_labels: dict[str, str],
-) -> str:
-    """Build an OCI Artifact Registry for the test case."""
-    return ar_builder(name=fixture_name, labels=fixture_labels)
-
-
-@pytest.fixture(scope="module")
 def fixture_output(
     sa_fixture_dir: Callable[[str], pathlib.Path],
     project_id: str,
@@ -53,7 +43,7 @@ def fixture_output(
 ) -> Generator[dict[str, Any], None, None]:
     """Create service account for test case."""
     assert ar_repo
-    with run_tf_in_workspace(
+    with run_tf_plan_apply_destroy(
         fixture=sa_fixture_dir(FIXTURE_NAME),
         tfvars={
             "project_id": project_id,
@@ -81,9 +71,9 @@ def test_output_values(fixture_output: dict[str, Any], project_id: str, fixture_
     assert re.match(pattern=f"serviceAccount:{fixture_name}@", string=member)
 
 
-def test_service_account(iam_client: iam_admin_v1.IAMClient, fixture_output: dict[str, Any]) -> None:
+def test_service_account(iam_admin_client: iam_admin_v1.IAMClient, fixture_output: dict[str, Any]) -> None:
     """Verify the service account meets expectations."""
-    service_account = iam_client.get_service_account(
+    service_account = iam_admin_client.get_service_account(
         request=iam_admin_v1.GetServiceAccountRequest(
             name=fixture_output["id"],
         ),
@@ -144,9 +134,9 @@ def test_ar_roles(
     bindings = policy.bindings
     assert bindings
     assert len(bindings) > 0
-    sa_bindings = [binding for binding in bindings if binding.role == "roles/artifactregistry.reader"]
-    assert sa_bindings
-    assert len(sa_bindings) == 1
-    for binding in sa_bindings:
+    reader_bindings = [binding for binding in bindings if binding.role == "roles/artifactregistry.reader"]
+    assert reader_bindings
+    assert len(reader_bindings) == 1
+    for binding in reader_bindings:
         assert binding
         assert sa_member in binding.members

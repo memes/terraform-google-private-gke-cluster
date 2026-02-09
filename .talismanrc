@@ -32,7 +32,7 @@ fileignoreconfig:
   ignore_detectors:
     - filecontent
 - filename: tests/conftest.py
-  checksum: 7c3b5e7433f4bfbf31f8de79b80d1465cf7077d719b757921faa2617bfa11b0f
+  checksum: 77e2ef5902ca6b7c5ca200acd18611830c942b42b578694df5e4427365bd13d1
 - filename: tests/gke_common_assertions.py
   checksum: 746cb9e663ce657caca08b8b28e3611400d76fa938bcbd69f55ece1b8e963f12
 - filename: tests/test_autopilot_nap.py
@@ -53,3 +53,11 @@ fileignoreconfig:
   checksum: eed5d69d91ade8068d07835ea464da1498a0312287606dc787818ecb4ed85314
 - filename: tests/test_autopilot_dns.py
   checksum: e8036f0469156c02fb254b343f013d078e0e7f6ab9281c768a420b6ad9b682c2
+- filename: tests/kubeconfig/test_run_tf_tests.py
+  checksum: a815feec112d42dd1dac09fbbe87c80796566d4f969c0523ce80d36ce6f28520
+- filename: tests/kubeconfig/conftest.py
+  checksum: 7f1bebf3ee5ad6fb2fd8e8a1c4763041c081c6e9ea6ba9f31678415dee5c23d4
+- filename: tests/autopilot/conftest.py
+  checksum: d72c2a569f7e322a98030b64ee1fd93c434241423d93b571a5d07acbb341b905
+- filename: tests/__init__.py
+  checksum: 73dcc4fcf26d79d46de54e7972dea7c5f614dacc48f4ba99461912dadfdf0c2d

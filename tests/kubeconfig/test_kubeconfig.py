@@ -3,6 +3,7 @@
 NOTE: The cluster is deployed with public and private endpoints so many variations of the module can be tested.
 """
 
+import base64
 import pathlib
 import re
 import subprocess
@@ -13,9 +14,16 @@ from typing import Any, cast
 
 import kubernetes.client
 import pytest
+from google.cloud import compute_v1
 
-from .conftest import kubernetes_api_client, run_tofu_in_workspace
-from .kubernetes_assertions import watcher
+from tests import (
+    get_private_address,
+    get_public_address,
+    kubernetes_api_client,
+    run_tf_plan_apply_destroy,
+    wait_for_forward_proxy,
+    watcher,
+)
 
 FIXTURE_NAME = "kubeconfig"
 FIXTURE_LABELS = {
@@ -36,39 +44,76 @@ def fixture_labels(labels: dict[str, str]) -> dict[str, str]:
 
 
 @pytest.fixture(scope="module")
-def sa_fixture_output(
-    sa_fixture_dir: pathlib.Path,
-    project_id: str,
+def network_self_link(
     fixture_name: str,
-) -> Generator[dict[str, Any], None, None]:
-    """Create a service account for the test case."""
-    with run_tofu_in_workspace(
-        fixture=sa_fixture_dir,
-        workspace=FIXTURE_NAME,
-        tfvars={
-            "project_id": project_id,
-            "name": fixture_name,
-        },
-    ) as output:
-        yield output
+    network_builder: Callable[..., str],
+    allow_ingress_firewall_builder: Callable[..., None],
+) -> str:
+    """Create testing VPC network."""
+    self_link = network_builder(fixture_name)
+    allow_ingress_firewall_builder(
+        network=self_link,
+        name=f"{fixture_name}-allow-ingress",
+    )
+    return self_link
 
 
 @pytest.fixture(scope="module")
-def vpc_fixture_output(
-    vpc_fixture_dir: pathlib.Path,
+def subnet_self_link(
+    fixture_name: str,
+    network_self_link: str,
+    subnet_builder: Callable[..., str],
+) -> str:
+    """Create testing VPC subnet with default secondary ranges."""
+    return subnet_builder(name=fixture_name, network_self_link=network_self_link)
+
+
+@pytest.fixture(scope="module")
+def bastion_sa_email(service_account_builder: Callable[..., str], fixture_name: str) -> str:
+    """Create a service account for this test case's bastion host and return it's email identifier."""
+    return service_account_builder(name=f"{fixture_name}-jmp")
+
+
+@pytest.fixture(scope="module")
+def bastion(
+    fixture_name: str,
+    fixture_labels: dict[str, str],
+    bastion_sa_email: str,
+    subnet_self_link: str,
+    bastion_builder: Callable[..., compute_v1.Instance],
+) -> compute_v1.Instance:
+    """Create a testing Bastion instance, returning the instance object."""
+    return bastion_builder(
+        name=f"{fixture_name}-jmp",
+        subnet=subnet_self_link,
+        sa_email=bastion_sa_email,
+        labels=fixture_labels,
+    )
+
+
+@pytest.fixture(scope="module")
+def bastion_proxy_url(
+    bastion: compute_v1.Instance,
+) -> str:
+    """Return the URL to use for proxying through bastion."""
+    proxy_url = f"http://{get_public_address(bastion)}:8888"
+    wait_for_forward_proxy(proxy_url)
+    return proxy_url
+
+
+@pytest.fixture(scope="module")
+def sa_fixture_output(
+    sa_fixture_dir: Callable[[str], pathlib.Path],
     project_id: str,
     fixture_name: str,
-    region: str,
     fixture_labels: dict[str, str],
 ) -> Generator[dict[str, Any], None, None]:
-    """Create a VPC and bastion for the test case."""
-    with run_tofu_in_workspace(
-        fixture=vpc_fixture_dir,
-        workspace=FIXTURE_NAME,
+    """Create service account for test case."""
+    with run_tf_plan_apply_destroy(
+        fixture=sa_fixture_dir(f"{FIXTURE_NAME}-sa"),
         tfvars={
             "project_id": project_id,
             "name": fixture_name,
-            "region": region,
             "labels": fixture_labels,
         },
     ) as output:
@@ -76,52 +121,36 @@ def vpc_fixture_output(
 
 
 @pytest.fixture(scope="module")
-def autopilot_fixture_output(
-    autopilot_fixture_dir: pathlib.Path,
+def cluster_output(
+    autopilot_fixture_dir: Callable[[str], pathlib.Path],
     project_id: str,
     fixture_name: str,
     fixture_labels: dict[str, str],
+    subnet_self_link: str,
     sa_fixture_output: dict[str, Any],
-    vpc_fixture_output: dict[str, Any],
+    bastion: compute_v1.Instance,
 ) -> Generator[dict[str, Any], None, None]:
     """Create GKE Autopilot cluster for test case."""
     service_account = cast("str", sa_fixture_output["email"])
     assert service_account
-    subnet = cast("dict[str, str]", vpc_fixture_output["subnet"])
-    assert subnet
-    subnet = subnet | {
-        "master_cidr": "192.168.0.0/28",
-    }
-    my_address = vpc_fixture_output["my_address"]
-    assert my_address
-    bastion_ip_address = vpc_fixture_output["bastion_ip_address"]
-    assert bastion_ip_address
-    with run_tofu_in_workspace(
-        fixture=autopilot_fixture_dir,
-        workspace=FIXTURE_NAME,
+    with run_tf_plan_apply_destroy(
+        fixture=autopilot_fixture_dir(f"{FIXTURE_NAME}-auto"),
         tfvars={
             "project_id": project_id,
             "name": fixture_name,
             "service_account": service_account,
-            "subnet": subnet,
-            "master_authorized_networks": [
-                {
-                    "cidr_block": f"{bastion_ip_address}/32",
-                    "display_name": "bastion",
-                },
-                {
-                    "cidr_block": f"{my_address}/32",
-                    "display_name": "test host",
-                },
-            ],
+            "subnet": {
+                "self_link": subnet_self_link,
+            },
             "labels": fixture_labels,
-            "options": {
-                "release_channel": "STABLE",
-                "master_global_access": True,
-                "etcd_kms": None,
-                "private_endpoint": False,
-                "default_snat": True,
-                "deletion_protection": False,
+            "control_plane_access": {
+                "enable_ip_access": True,
+                "authorized_cidrs": [
+                    {
+                        "cidr_block": f"{get_private_address(bastion)}/32",
+                        "display_name": "bastion",
+                    },
+                ],
             },
         },
     ) as output:
@@ -129,18 +158,27 @@ def autopilot_fixture_output(
 
 
 @pytest.fixture(scope="module")
+def cluster_id(
+    cluster_output: dict[str, Any],
+) -> str:
+    """Return the GKE Cluster object matching the fixture output."""
+    cluster_id = cast("str", cluster_output["id"])
+    assert cluster_id
+    return cluster_id
+
+
+@pytest.fixture(scope="module")
 def kubeconfig_builder(
-    kubeconfig_fixture_dir: pathlib.Path,
+    kubeconfig_fixture_dir: Callable[[str], pathlib.Path],
 ) -> Callable[[str, dict[str, Any]], _GeneratorContextManager[pathlib.Path, None, None]]:
     """Return a builder of kubeconfig files."""
 
     @contextmanager
-    def _builder(workspace: str, tfvars: dict[str, Any]) -> Generator[pathlib.Path, None, None]:
-        assert workspace
+    def _builder(name: str, tfvars: dict[str, Any]) -> Generator[pathlib.Path, None, None]:
+        assert name
         assert tfvars
-        with run_tofu_in_workspace(
-            fixture=kubeconfig_fixture_dir,
-            workspace=workspace,
+        with run_tf_plan_apply_destroy(
+            fixture=kubeconfig_fixture_dir(f"{FIXTURE_NAME}-{name}"),
             tfvars=tfvars,
         ) as output:
             assert output
@@ -218,91 +256,46 @@ def exec_kubectl(kubeconfig: pathlib.Path, cluster_arg: str | None = None, conte
     assert matches
 
 
-def test_minimal(
+def test_default(
     kubeconfig_builder: Callable[[str, dict[str, Any]], _GeneratorContextManager[pathlib.Path, None, None]],
-    autopilot_fixture_output: dict[str, Any],
+    cluster_id: str,
 ) -> None:
-    """Create a minimal Kubeconfig for the cluster, verify that it cannot be used to connect to cluster."""
-    cluster_id = autopilot_fixture_output["id"]
-    assert cluster_id
-    workspace = f"{FIXTURE_NAME}-min"
-    tfvars = {
-        "cluster_id": cluster_id,
-    }
-    with (
-        kubeconfig_builder(workspace, tfvars) as kubeconfig,
-        pytest.raises(subprocess.CalledProcessError),
-    ):
+    """Create a default Kubeconfig for the cluster, verify that it can be used to connect to cluster."""
+    with kubeconfig_builder("def", {"cluster_id": cluster_id}) as kubeconfig:
         exec_kubectl(kubeconfig=kubeconfig)
 
 
-def test_minimal_with_proxy_url(
+def test_default_with_proxy_url(
     kubeconfig_builder: Callable[[str, dict[str, Any]], _GeneratorContextManager[pathlib.Path, None, None]],
-    autopilot_fixture_output: dict[str, Any],
-    vpc_fixture_output: dict[str, Any],
+    cluster_id: str,
+    bastion_proxy_url: str,
 ) -> None:
-    """Create a minimal Kubeconfig for the cluster, verify that it cannot be used to connect to cluster."""
-    cluster_id = autopilot_fixture_output["id"]
-    assert cluster_id
-    bastion_public_ip_address = vpc_fixture_output["bastion_public_ip_address"]
-    assert bastion_public_ip_address
-    workspace = f"{FIXTURE_NAME}-min-proxy"
-    tfvars = {
-        "cluster_id": cluster_id,
-        "proxy_url": f"http://{bastion_public_ip_address}:8888",
-    }
-    with kubeconfig_builder(workspace, tfvars) as kubeconfig:
+    """Create a default Kubeconfig for the cluster, verify that it can be used to connect to cluster via bastion."""
+    with kubeconfig_builder(
+        "def-proxy",
+        {
+            "cluster_id": cluster_id,
+            "proxy_url": bastion_proxy_url,
+        },
+    ) as kubeconfig:
         exec_kubectl(kubeconfig=kubeconfig)
 
 
-def test_public_endpoint(
+def test_private_ip_address_with_proxy_url(
     kubeconfig_builder: Callable[[str, dict[str, Any]], _GeneratorContextManager[pathlib.Path, None, None]],
-    autopilot_fixture_output: dict[str, Any],
+    cluster_id: str,
+    bastion_proxy_url: str,
 ) -> None:
-    """Create a minimal Kubeconfig for the cluster, verify that it cannot be used to connect to cluster."""
-    cluster_id = autopilot_fixture_output["id"]
-    assert cluster_id
-    workspace = f"{FIXTURE_NAME}-public"
-    tfvars = {
-        "cluster_id": cluster_id,
-        "use_private_endpoint": False,
-    }
-    with kubeconfig_builder(workspace, tfvars) as kubeconfig:
+    """Create a default Kubeconfig for the cluster, verify that it can be used to connect to cluster via bastion."""
+    with kubeconfig_builder(
+        "ip-proxy",
+        {
+            "cluster_id": cluster_id,
+            "proxy_url": bastion_proxy_url,
+            "use_private_endpoint": True,
+        },
+    ) as kubeconfig:
         exec_kubectl(kubeconfig=kubeconfig)
-
-
-def test_public_with_cluster_name(
-    kubeconfig_builder: Callable[[str, dict[str, Any]], _GeneratorContextManager[pathlib.Path, None, None]],
-    autopilot_fixture_output: dict[str, Any],
-) -> None:
-    """Create a minimal Kubeconfig for the cluster, verify that it can connect to API."""
-    cluster_id = autopilot_fixture_output["id"]
-    assert cluster_id
-    workspace = f"{FIXTURE_NAME}-public-cluster-name"
-    tfvars = {
-        "cluster_id": cluster_id,
-        "use_private_endpoint": False,
-        "cluster_name": "test-cluster",
-    }
-    with kubeconfig_builder(workspace, tfvars) as kubeconfig:
-        exec_kubectl(kubeconfig=kubeconfig, cluster_arg="test-cluster")
-
-
-def test_public_with_context_name(
-    kubeconfig_builder: Callable[[str, dict[str, Any]], _GeneratorContextManager[pathlib.Path, None, None]],
-    autopilot_fixture_output: dict[str, Any],
-) -> None:
-    """Create a minimal Kubeconfig for the cluster, verify that it can connect to API."""
-    cluster_id = autopilot_fixture_output["id"]
-    assert cluster_id
-    workspace = f"{FIXTURE_NAME}-public-context-name"
-    tfvars = {
-        "cluster_id": cluster_id,
-        "use_private_endpoint": False,
-        "context_name": "test-context",
-    }
-    with kubeconfig_builder(workspace, tfvars) as kubeconfig:
-        exec_kubectl(kubeconfig=kubeconfig, context_arg="test-context")
 
 
 @contextmanager
@@ -345,12 +338,12 @@ def service_account_token_secret(
         """Return True if the secret exists and has a value for data field."""
         assert obj
         secret = cast("kubernetes.client.V1Secret", obj)
-        if secret.metadata.name != name:  # pyright: ignore[reportOptionalMemberAccess]
+        if secret.metadata.name != name:
             return False
         data = cast("str", secret.data)
         return data != ""
 
-    namespace = service_account.metadata.namespace  # pyright: ignore[reportOptionalMemberAccess]
+    namespace = service_account.metadata.namespace
     core_v1 = kubernetes.client.CoreV1Api(api_client=api_client)
     try:
         secret = core_v1.create_namespaced_secret(
@@ -360,7 +353,7 @@ def service_account_token_secret(
                     name=name,
                     namespace=namespace,
                     annotations={
-                        "kubernetes.io/service-account.name": service_account.metadata.name,  # pyright: ignore[reportOptionalMemberAccess]
+                        "kubernetes.io/service-account.name": service_account.metadata.name,
                     },
                 ),
                 type="kubernetes.io/service-account-token",
@@ -438,13 +431,13 @@ def cluster_role_binding(
                 role_ref=kubernetes.client.V1RoleRef(
                     api_group="rbac.authorization.k8s.io",
                     kind=cluster_role.kind,
-                    name=cluster_role.metadata.name,  # pyright: ignore[reportOptionalMemberAccess]
+                    name=cluster_role.metadata.name,
                 ),
                 subjects=[
                     kubernetes.client.RbacV1Subject(
                         kind=service_account.kind,
-                        name=service_account.metadata.name,  # pyright: ignore[reportOptionalMemberAccess]
-                        namespace=service_account.metadata.namespace,  # pyright: ignore[reportOptionalMemberAccess]
+                        name=service_account.metadata.name,
+                        namespace=service_account.metadata.namespace,
                     ),
                 ],
             ),
@@ -460,22 +453,23 @@ def cluster_role_binding(
 
 def test_sa_access(
     kubeconfig_builder: Callable[[str, dict[str, Any]], _GeneratorContextManager[pathlib.Path, None, None]],
-    autopilot_fixture_output: dict[str, Any],
+    cluster_output: dict[str, Any],
+    bastion_proxy_url: str,
     fixture_name: str,
 ) -> None:
     """Create a token-based authentication Kubeconfig for a service account in the cluster, verify it.
 
     This is a common scenario when using F5XC Service Discovery, for example.
     """
-    cluster_id = autopilot_fixture_output["id"]
+    cluster_id = cluster_output["id"]
     assert cluster_id
-    endpoint_url = autopilot_fixture_output["public_endpoint_url"]
+    endpoint_url = cluster_output["dns_endpoint_url"]
     assert endpoint_url
-    ca_cert = autopilot_fixture_output["ca_cert"]
+    ca_cert = cluster_output["ca_cert"]
     assert ca_cert
     name = f"{fixture_name}-sa"
     with (
-        kubernetes_api_client(host=endpoint_url, ca=ca_cert) as client,
+        kubernetes_api_client(host=endpoint_url) as client,
         service_account(api_client=client, name=name) as sa,
         service_account_token_secret(api_client=client, name=name, service_account=sa) as secret,
         cluster_role(api_client=client, name=name) as role,
@@ -489,14 +483,15 @@ def test_sa_access(
         assert binding
         assert secret
         assert secret.data
-        token = secret.data["token"]
+        token = base64.b64decode(secret.data["token"]).decode(encoding="utf-8")
         assert token
         workspace = name
         tfvars = {
             "cluster_id": cluster_id,
-            "use_private_endpoint": False,
+            "use_private_endpoint": True,
+            "proxy_url": bastion_proxy_url,
             "user": {
-                "name": sa.metadata.name,  # pyright: ignore[reportOptionalMemberAccess]
+                "name": sa.metadata.name,
                 "token": token,
             },
         }

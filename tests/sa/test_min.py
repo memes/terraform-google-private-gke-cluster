@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from google.cloud import iam_admin_v1, resourcemanager_v3
 
-from tests import run_tf_in_workspace
+from tests import run_tf_plan_apply_destroy
 
 FIXTURE_NAME = "sa-min"
 EXPECTED_DISPLAY_NAME = "Generated GKE Service Account"
@@ -32,7 +32,7 @@ def fixture_output(
     fixture_name: str,
 ) -> Generator[dict[str, Any], None, None]:
     """Create service account for test case."""
-    with run_tf_in_workspace(
+    with run_tf_plan_apply_destroy(
         fixture=sa_fixture_dir(FIXTURE_NAME),
         tfvars={
             "project_id": project_id,
@@ -55,9 +55,9 @@ def test_output_values(fixture_output: dict[str, Any], project_id: str, fixture_
     assert re.match(pattern=f"serviceAccount:{fixture_name}@", string=member)
 
 
-def test_service_account(iam_client: iam_admin_v1.IAMClient, fixture_output: dict[str, Any]) -> None:
+def test_service_account(iam_admin_client: iam_admin_v1.IAMClient, fixture_output: dict[str, Any]) -> None:
     """Verify the service account meets expectations."""
-    service_account = iam_client.get_service_account(
+    service_account = iam_admin_client.get_service_account(
         request=iam_admin_v1.GetServiceAccountRequest(
             name=fixture_output["id"],
         ),

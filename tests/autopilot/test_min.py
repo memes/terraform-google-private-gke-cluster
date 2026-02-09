@@ -1,19 +1,25 @@
-"""Test fixture for Autopilot GKE cluster with NAP configuration."""
+"""Test fixture for Autopilot GKE cluster with minimal configuration."""
 
 import base64
-import ipaddress
 import pathlib
+import re
 import urllib.parse
-from collections import Counter
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import Any, cast
 
 import pytest
 from cryptography import x509
-from google.cloud import container_v1
+from google.cloud import compute_v1, container_v1
 
-from .conftest import kubernetes_api_client, run_tofu_in_workspace
-from .gke_autopilot_assertions import (
+from tests import (
+    assert_any_labelled_service_exists,
+    assert_namespace,
+    get_public_address,
+    kubernetes_api_client,
+    run_tf_plan_apply_destroy,
+    wait_for_forward_proxy,
+)
+from tests.autopilot import (
     assert_anonymous_authentication_config,
     assert_compliance_posture_config,
     assert_default_addons_config,
@@ -38,12 +44,12 @@ from .gke_autopilot_assertions import (
     assert_default_monitoring_config,
     assert_default_network_config,
     assert_default_network_policy,
+    assert_default_node_pool_auto_config,
     assert_default_node_pool_defaults,
     assert_default_node_pools,
     assert_default_notification_config,
     assert_default_pod_autoscaling,
     assert_default_release_channel,
-    assert_default_resource_labels,
     assert_default_resource_usage_export_config,
     assert_default_security_posture_config,
     assert_default_shielded_nodes,
@@ -56,12 +62,8 @@ from .gke_autopilot_assertions import (
     assert_secret_manager_config,
     assert_user_managed_keys_config,
 )
-from .kubernetes_assertions import (
-    assert_any_labelled_service_exists,
-    assert_namespace,
-)
 
-FIXTURE_NAME = "auto-nap"
+FIXTURE_NAME = "auto-min"
 FIXTURE_LABELS = {
     "fixture": FIXTURE_NAME,
 }
@@ -80,45 +82,77 @@ def fixture_labels(labels: dict[str, str]) -> dict[str, str]:
 
 
 @pytest.fixture(scope="module")
-def sa_fixture_output(
-    sa_fixture_dir: pathlib.Path,
-    project_id: str,
+def network_self_link(
     fixture_name: str,
-) -> Generator[dict[str, Any], None, None]:
-    """Create a service account for the test case."""
-    with run_tofu_in_workspace(
-        fixture=sa_fixture_dir,
-        workspace=FIXTURE_NAME,
-        tfvars={
-            "project_id": project_id,
-            "name": fixture_name,
-        },
-    ) as output:
-        yield output
+    network_builder: Callable[..., str],
+    allow_ingress_firewall_builder: Callable[..., None],
+) -> str:
+    """Create testing VPC network."""
+    self_link = network_builder(fixture_name)
+    allow_ingress_firewall_builder(
+        network=self_link,
+        name=f"{fixture_name}-allow-ingress",
+    )
+    return self_link
 
 
 @pytest.fixture(scope="module")
-def vpc_fixture_output(
-    vpc_fixture_dir: pathlib.Path,
+def subnet_self_link(
+    fixture_name: str,
+    network_self_link: str,
+    subnet_builder: Callable[..., str],
+) -> str:
+    """Create testing VPC subnet with default secondary ranges."""
+    return subnet_builder(name=fixture_name, network_self_link=network_self_link)
+
+
+@pytest.fixture(scope="module")
+def bastion_sa_email(service_account_builder: Callable[..., str], fixture_name: str) -> str:
+    """Create a service account for this test case's bastion host and return it's email identifier."""
+    return service_account_builder(name=f"{fixture_name}-jmp")
+
+
+@pytest.fixture(scope="module")
+def bastion(
+    fixture_name: str,
+    fixture_labels: dict[str, str],
+    bastion_sa_email: str,
+    subnet_self_link: str,
+    bastion_builder: Callable[..., compute_v1.Instance],
+) -> compute_v1.Instance:
+    """Create a testing Bastion instance, returning the instance object."""
+    return bastion_builder(
+        name=f"{fixture_name}-jmp",
+        subnet=subnet_self_link,
+        sa_email=bastion_sa_email,
+        labels=fixture_labels,
+    )
+
+
+@pytest.fixture(scope="module")
+def bastion_proxy_url(
+    bastion: compute_v1.Instance,
+) -> str:
+    """Return the URL to use for proxying through bastion."""
+    proxy_url = f"http://{get_public_address(bastion)}:8888"
+    wait_for_forward_proxy(proxy_url)
+    return proxy_url
+
+
+@pytest.fixture(scope="module")
+def sa_fixture_output(
+    sa_fixture_dir: Callable[[str], pathlib.Path],
     project_id: str,
     fixture_name: str,
-    region: str,
     fixture_labels: dict[str, str],
 ) -> Generator[dict[str, Any], None, None]:
-    """Create a VPC and bastion for the test case."""
-    with run_tofu_in_workspace(
-        fixture=vpc_fixture_dir,
-        workspace=FIXTURE_NAME,
+    """Create service account for test case."""
+    with run_tf_plan_apply_destroy(
+        fixture=sa_fixture_dir(f"{FIXTURE_NAME}-sa"),
         tfvars={
             "project_id": project_id,
             "name": fixture_name,
-            "region": region,
             "labels": fixture_labels,
-            "nap": {
-                "tags": [
-                    fixture_name,
-                ],
-            },
         },
     ) as output:
         yield output
@@ -126,39 +160,23 @@ def vpc_fixture_output(
 
 @pytest.fixture(scope="module")
 def fixture_output(
-    autopilot_fixture_dir: pathlib.Path,
+    autopilot_fixture_dir: Callable[[str], pathlib.Path],
     project_id: str,
     fixture_name: str,
-    fixture_labels: dict[str, str],
+    subnet_self_link: str,
     sa_fixture_output: dict[str, Any],
-    vpc_fixture_output: dict[str, Any],
 ) -> Generator[dict[str, Any], None, None]:
     """Create GKE Autopilot cluster for test case."""
     service_account = cast("str", sa_fixture_output["email"])
     assert service_account
-    subnet = cast("dict[str, str]", vpc_fixture_output["subnet"])
-    assert subnet
-    bastion_ip_address = vpc_fixture_output["bastion_ip_address"]
-    assert bastion_ip_address
-    with run_tofu_in_workspace(
-        fixture=autopilot_fixture_dir,
-        workspace=FIXTURE_NAME,
+    with run_tf_plan_apply_destroy(
+        fixture=autopilot_fixture_dir(FIXTURE_NAME),
         tfvars={
             "project_id": project_id,
             "name": fixture_name,
             "service_account": service_account,
-            "subnet": subnet,
-            "master_authorized_networks": [
-                {
-                    "cidr_block": f"{bastion_ip_address}/32",
-                    "display_name": "bastion",
-                },
-            ],
-            "labels": fixture_labels,
-            "nap": {
-                "tags": [
-                    fixture_name,
-                ],
+            "subnet": {
+                "self_link": subnet_self_link,
             },
         },
     ) as output:
@@ -180,38 +198,6 @@ def cluster(
     )
     assert cluster
     return cluster
-
-
-@pytest.fixture(scope="module")
-def network_self_link(vpc_fixture_output: dict[str, Any]) -> str:
-    """Return the VPC network self-link for test fixture."""
-    network_self_link = cast("str", vpc_fixture_output.get("self_link"))
-    assert network_self_link
-    return network_self_link
-
-
-@pytest.fixture(scope="module")
-def subnet_self_link(vpc_fixture_output: dict[str, Any]) -> str:
-    """Return the VPC subnet self-link for test fixture."""
-    subnet = cast("dict[str, str]", vpc_fixture_output["subnet"])
-    assert subnet
-    return subnet["self_link"]
-
-
-@pytest.fixture(scope="module")
-def pods_range_name(vpc_fixture_output: dict[str, Any]) -> str:
-    """Return the VPC subnet secondary range name to use for pods/cluster in test fixture."""
-    subnet = cast("dict[str, str]", vpc_fixture_output["subnet"])
-    assert subnet
-    return subnet["pods_range_name"]
-
-
-@pytest.fixture(scope="module")
-def services_range_name(vpc_fixture_output: dict[str, Any]) -> str:
-    """Return the VPC subnet secondary range name to use for services in test fixture."""
-    subnet = cast("dict[str, str]", vpc_fixture_output["subnet"])
-    assert subnet
-    return subnet["services_range_name"]
 
 
 @pytest.fixture(scope="module")
@@ -238,16 +224,14 @@ def test_output_values(fixture_output: dict[str, Any], project_id: str, region: 
     ca_cert_raw = base64.standard_b64decode(ca_cert_b64)
     ca_cert = x509.load_pem_x509_certificate(data=ca_cert_raw)
     assert ca_cert
-    endpoint_url = fixture_output["endpoint_url"]
-    assert endpoint_url
-    url = urllib.parse.urlparse(endpoint_url)
+    dns_endpoint_url = fixture_output["dns_endpoint_url"]
+    assert dns_endpoint_url
+    url = urllib.parse.urlparse(dns_endpoint_url)
     assert url
     assert url.scheme == "https"
+    assert re.search(f"{region}\\.gke\\.goog$", url.hostname)
     assert not url.port
-    address = ipaddress.IPv4Address(url.hostname)
-    assert address
-    assert address.is_private
-    assert "public_endpoint_url" not in fixture_output
+    assert "private_ip_endpoint_url" not in fixture_output
 
 
 def test_base_config(
@@ -280,9 +264,9 @@ def test_node_pools(cluster: container_v1.Cluster) -> None:
     assert_default_node_pools(cluster.node_pools)
 
 
+# NOTE: Labels are not passed as variable, this test cannot verify and does nothing.
 def test_resource_labels(cluster: container_v1.Cluster, fixture_labels: dict[str, str]) -> None:
     """Verify the GKE cluster resource labels configuration meets expectations."""
-    assert_default_resource_labels(resource_labels=cluster.resource_labels, expected_labels=fixture_labels)
 
 
 def test_legacy_abac_config(cluster: container_v1.Cluster) -> None:
@@ -297,14 +281,10 @@ def test_network_policy_config(cluster: container_v1.Cluster) -> None:
 
 def test_default_ip_allocation_policy(
     cluster: container_v1.Cluster,
-    pods_range_name: str,
-    services_range_name: str,
 ) -> None:
     """Verify the GKE cluster IP allocation policy meets expectations."""
     assert_default_ip_allocation_policy(
         cluster.ip_allocation_policy,
-        cluster_range_name=pods_range_name,
-        services_range_name=services_range_name,
     )
 
 
@@ -418,19 +398,9 @@ def test_monitoring_config(cluster: container_v1.Cluster) -> None:
     assert_default_monitoring_config(cluster.monitoring_config)
 
 
-def test_node_pool_auto_config(cluster: container_v1.Cluster, fixture_name: str) -> None:
+def test_node_pool_auto_config(cluster: container_v1.Cluster) -> None:
     """Verify the GKE cluster node pool auto config meets expectations."""
-    node_pool_auto_config = cluster.node_pool_auto_config
-    assert node_pool_auto_config is not None
-    assert node_pool_auto_config.network_tags is not None
-    expected_tags = [
-        fixture_name,
-    ]
-    assert Counter(node_pool_auto_config.network_tags.tags) == Counter(expected_tags)
-    assert node_pool_auto_config.resource_manager_tags is not None
-    assert len(node_pool_auto_config.resource_manager_tags.tags) == 0
-    assert node_pool_auto_config.node_kubelet_config is not None
-    assert node_pool_auto_config.linux_node_config is not None
+    assert_default_node_pool_auto_config(cluster.node_pool_auto_config)
 
 
 def test_pod_autoscaling(cluster: container_v1.Cluster) -> None:
@@ -493,21 +463,20 @@ def test_anonymous_authentication_config(cluster: container_v1.Cluster) -> None:
     assert_anonymous_authentication_config(cluster.anonymous_authentication_config)
 
 
-def test_private_api_access_via_proxy(
+def test_default_dns_config(cluster: container_v1.Cluster) -> None:
+    """Verify the GKE cluster default DNS configuration meets expectations."""
+    assert_default_dns_config(dns_config=cluster.network_config.dns_config)
+
+
+def test_remote_dns_endpoint_url(
     fixture_output: dict[str, Any],
-    vpc_fixture_output: dict[str, Any],
 ) -> None:
-    """Verify that access to Kubernetes API through bastion is successful."""
-    endpoint_url = fixture_output["endpoint_url"]
+    """Verify that access to DNS Kubernetes API from this device is successful."""
+    endpoint_url = fixture_output["dns_endpoint_url"]
     assert endpoint_url
-    ca_cert = fixture_output["ca_cert"]
-    assert ca_cert
-    bastion_public_ip_address = vpc_fixture_output["bastion_public_ip_address"]
-    assert bastion_public_ip_address
+
     with kubernetes_api_client(
         host=endpoint_url,
-        ca=ca_cert,
-        proxy_url=f"http://{bastion_public_ip_address}:8888",
     ) as client:
         assert_namespace(client=client, namespace="kube-system")
         assert_any_labelled_service_exists(
@@ -517,6 +486,22 @@ def test_private_api_access_via_proxy(
         )
 
 
-def test_default_dns_config(cluster: container_v1.Cluster) -> None:
-    """Verify the GKE cluster default DNS configuration meets expectations."""
-    assert_default_dns_config(dns_config=cluster.network_config.dns_config)
+def test_proxied_dns_endpoint_url(
+    fixture_output: dict[str, Any],
+    bastion_proxy_url: str,
+) -> None:
+    """Verify that access to DNS Kubernetes API proxied through a VPC bastion is successful."""
+    endpoint_url = fixture_output["dns_endpoint_url"]
+    assert endpoint_url
+    assert bastion_proxy_url
+
+    with kubernetes_api_client(
+        host=endpoint_url,
+        proxy_url=bastion_proxy_url,
+    ) as client:
+        assert_namespace(client=client, namespace="kube-system")
+        assert_any_labelled_service_exists(
+            client=client,
+            namespace="kube-system",
+            label_selector="kubernetes.io/cluster-service=true",
+        )

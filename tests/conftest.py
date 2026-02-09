@@ -1,24 +1,21 @@
 """Common testing fixtures."""
 
-import base64
 import os
 import pathlib
+import random
+import re
 import shutil
-import tempfile
 from collections.abc import Callable, Generator
-from contextlib import contextmanager
-from typing import Any, cast
+from typing import Any
 
 import google.auth
 import google.auth.credentials
-import google.auth.transport.requests
-import kubernetes.client
 import pytest
 import requests
 from google.api_core import exceptions
-from google.cloud import compute_v1, container_v1, resourcemanager_v3
+from google.cloud import artifactregistry_v1, compute_v1, container_v1, iam_admin_v1, resourcemanager_v3
 
-from tests import handle_extended_operation, skip_destroy_phase
+from tests import handle_extended_operation, handle_operation, skip_destroy_phase
 
 DEFAULT_PREFIX = "pgke"
 DEFAULT_LABELS = {
@@ -281,48 +278,6 @@ def cluster_manager_client() -> container_v1.ClusterManagerClient:
     return container_v1.ClusterManagerClient()
 
 
-@contextmanager
-def kubernetes_api_client(
-    host: str,
-    ca: str,
-    proxy_url: str | None = None,
-) -> Generator[kubernetes.client.ApiClient, None, None]:
-    """Yield a configured API client built from GKE parameters.
-
-    NOTE: API client expects CA certificate to be passed as a file, so this will create a temporary file that will be
-    destroyed after the API client is released.
-    """
-    credentials, _ = google.auth.default()
-    credentials = cast("google.auth.credentials.Credentials", credentials)
-    request = google.auth.transport.requests.Request()
-    credentials.refresh(request)
-    with tempfile.NamedTemporaryFile(
-        mode="w+b",
-        prefix="ca",
-        suffix=".pem",
-        delete_on_close=False,
-        delete=True,
-    ) as ca_cert_file:
-        ca_cert_file.write(base64.standard_b64decode(ca))
-        ca_cert_file.close()
-        config = kubernetes.client.Configuration(
-            host=host,
-            api_key_prefix={
-                "authorization": "Bearer",
-            },
-            api_key={
-                "authorization": credentials.token,
-            },
-        )
-        config.ssl_ca_cert = ca_cert_file.name  # pyright: ignore[reportAttributeAccessIssue]
-        config.verify_ssl = True
-        if proxy_url:
-            config.proxy = proxy_url  # pyright: ignore[reportAttributeAccessIssue]
-        client = kubernetes.client.ApiClient(configuration=config)
-        assert client
-        yield client
-
-
 @pytest.fixture(scope="session")
 def networks_client() -> compute_v1.NetworksClient:
     """Return an initialized Compute Engine v1 Networks API client."""
@@ -454,7 +409,7 @@ def subnet_builder(
                                     ip_cidr_range=v,
                                     range_name=k,
                                 )
-                                for k, v in secondaries
+                                for k, v in secondaries.items()
                             ],
                         ),
                         project=project_id,
@@ -537,5 +492,294 @@ def allow_ingress_firewall_builder(
             )
         request.addfinalizer(_cleanup)
         return rule.self_link
+
+    return _builder
+
+
+@pytest.fixture(scope="session")
+def ar_client() -> artifactregistry_v1.ArtifactRegistryClient:
+    """Return a AR client."""
+    return artifactregistry_v1.ArtifactRegistryClient()
+
+
+@pytest.fixture(scope="session")
+def ar_repo(
+    prefix: str,
+    project_id: str,
+    region: str,
+    labels: dict[str, str],
+    ar_client: artifactregistry_v1.ArtifactRegistryClient,
+) -> Generator[str, None, None]:
+    """Create an OCI Artifact Registry for test cases."""
+    name = f"{prefix}-common"
+    try:
+        registry = ar_client.get_repository(
+            request=artifactregistry_v1.GetRepositoryRequest(
+                name=f"projects/{project_id}/locations/{region}/repositories/{name}",
+            ),
+        )
+        uri = registry.registry_uri
+    except exceptions.NotFound:
+        registry = handle_operation(
+            ar_client.create_repository(
+                request=artifactregistry_v1.CreateRepositoryRequest(
+                    parent=f"projects/{project_id}/locations/{region}",
+                    repository_id=name,
+                    repository=artifactregistry_v1.Repository(
+                        format_="DOCKER",
+                        description="OCI Artifact Registry for terraform-google-private-gke-cluster testing",
+                        labels=labels,
+                    ),
+                ),
+            ),
+        )
+        assert registry
+        uri = registry.registry_uri or f"{region}-docker.pkg.dev/{project_id}/{name}"
+    yield uri
+    if not skip_destroy_phase():
+        handle_operation(
+            ar_client.delete_repository(
+                request=artifactregistry_v1.DeleteRepositoryRequest(
+                    name=f"projects/{project_id}/locations/{region}/repositories/{name}",
+                ),
+            ),
+        )
+
+
+@pytest.fixture(scope="session")
+def instances_client() -> compute_v1.InstancesClient:
+    """Return a reusable Compute Engine v1 Instances API client."""
+    return compute_v1.InstancesClient()
+
+
+@pytest.fixture(scope="session")
+def regions_client() -> compute_v1.RegionsClient:
+    """Return a reusable Compute Engine v2 Regions API client."""
+    return compute_v1.RegionsClient()
+
+
+@pytest.fixture(scope="session")
+def shuffled_zones(
+    pytestconfig: pytest.Config,
+    project_id: str,
+    region: str,
+    regions_client: compute_v1.RegionsClient,
+) -> Generator[list[str], None, None]:
+    """Return a list of Compute Engine zone names."""
+    cache_key = f"terraform-google-private-gke-cluster/zones-{region}"
+    zones = pytestconfig.cache.get(cache_key, None)
+    if zones is None:
+        result = regions_client.get(
+            request=compute_v1.GetRegionRequest(
+                project=project_id,
+                region=region,
+            ),
+        )
+        zones = random.sample([zone.split("/")[-1] for zone in result.zones], len(result.zones))
+        pytestconfig.cache.set(cache_key, zones)
+    yield zones
+    if not skip_destroy_phase():
+        pytestconfig.cache.set(cache_key, None)
+
+
+@pytest.fixture(scope="session")
+def iam_admin_client() -> iam_admin_v1.IAMClient:
+    """Return an initialized IAM Admin v1 client."""
+    return iam_admin_v1.IAMClient()
+
+
+@pytest.fixture(scope="session")
+def service_account_builder(
+    request: pytest.FixtureRequest,
+    project_id: str,
+    iam_admin_client: iam_admin_v1.IAMClient,
+) -> Callable[[str, str, str], str]:
+    """Return a builder of service accounts."""
+
+    def _builder(
+        name: str,
+        display_name: str | None = None,
+        description: str | None = None,
+    ) -> str:
+        """Create a service account with given name, returning it's email address, with automatic deletion after use."""
+        if display_name is None:
+            display_name = "terraform-google-private-gke-cluster test account"
+        if description is None:
+            description = "A test service account for automated GKE testing."
+
+        def _cleanup() -> None:
+            if not skip_destroy_phase():
+                iam_admin_client.delete_service_account(
+                    request=iam_admin_v1.DeleteServiceAccountRequest(
+                        name=sa.name,
+                    ),
+                )
+
+        try:
+            sa_accounts = iam_admin_client.list_service_accounts(
+                name=f"projects/{project_id}",
+            )
+            sa = next(sa for sa in sa_accounts if re.search(f"serviceAccounts/{name}", sa.name))
+        except (StopIteration, exceptions.NotFound):
+            sa = iam_admin_client.create_service_account(
+                request=iam_admin_v1.CreateServiceAccountRequest(
+                    account_id=name,
+                    name=f"projects/{project_id}",
+                    service_account=iam_admin_v1.ServiceAccount(
+                        display_name=display_name,
+                        description=description,
+                    ),
+                ),
+            )
+        request.addfinalizer(_cleanup)
+        return sa.email
+
+    return _builder
+
+
+@pytest.fixture(scope="session")
+def bastion_builder(
+    request: pytest.FixtureRequest,
+    project_id: str,
+    shuffled_zones: list[str],
+    instances_client: compute_v1.InstancesClient,
+) -> Callable[[str, str, str, str | None, str | None, dict[str, str] | None], compute_v1.Instance]:
+    """Return a builder of Bastion instances."""
+
+    def _builder(
+        name: str,
+        subnet: str,
+        sa_email: str,
+        zone: str | None = None,
+        description: str | None = None,
+        labels: dict[str, str] | None = None,
+    ) -> compute_v1.Instance:
+        """Create a bastion instance with given name with NAT'd public IP."""
+        if description is None:
+            description = "Bastion instance for terraform-google-private-gke-cluster test case."
+        if labels is None:
+            labels = {}
+        if zone is None:
+            zone = shuffled_zones[0]
+
+        def _cleanup() -> None:
+            if not skip_destroy_phase():
+                handle_extended_operation(
+                    instances_client.delete(
+                        request=compute_v1.DeleteInstanceRequest(
+                            instance=name,
+                            project=project_id,
+                            zone=zone,
+                        ),
+                    ),
+                )
+
+        try:
+            instance = instances_client.get(
+                request=compute_v1.GetInstanceRequest(
+                    instance=name,
+                    project=project_id,
+                    zone=zone,
+                ),
+            )
+        except exceptions.NotFound:
+            handle_extended_operation(
+                instances_client.insert(
+                    request=compute_v1.InsertInstanceRequest(
+                        instance_resource=compute_v1.Instance(
+                            name=name,
+                            description=description,
+                            deletion_protection=False,
+                            disks=[
+                                compute_v1.AttachedDisk(
+                                    auto_delete=True,
+                                    boot=True,
+                                    initialize_params=compute_v1.AttachedDiskInitializeParams(
+                                        description=f"{name} boot disk",
+                                        disk_size_gb=20,
+                                        disk_type=f"projects/{project_id}/zones/{zone}/diskTypes/pd-standard",
+                                        labels=labels,
+                                        source_image="projects/confidential-vm-images/global/images/family/cos-stable",
+                                    ),
+                                    mode="READ_WRITE",
+                                ),
+                            ],
+                            network_interfaces=[
+                                compute_v1.NetworkInterface(
+                                    access_configs=[
+                                        compute_v1.AccessConfig(
+                                            type_="ONE_TO_ONE_NAT",
+                                        ),
+                                    ],
+                                    nic_type="VIRTIO_NET",
+                                    subnetwork=subnet,
+                                ),
+                            ],
+                            service_accounts=[
+                                compute_v1.ServiceAccount(
+                                    email=sa_email,
+                                    scopes=[
+                                        "https://www.googleapis.com/auth/cloud-platform",
+                                    ],
+                                ),
+                            ],
+                            labels=labels,
+                            machine_type=f"zones/{zone}/machineTypes/e2-medium",
+                            metadata=compute_v1.Metadata(
+                                items=[
+                                    compute_v1.Items(key="enable-oslogin", value="TRUE"),
+                                    compute_v1.Items(
+                                        key="user-data",
+                                        value="""#cloud-config
+# Launches a forward-proxy container from a (private) repo on boot.
+---
+write_files:
+  - path: /etc/systemd/system/forward-proxy.service
+    permissions: '0o644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Launch a forward-proxy in a container
+      After=network-online.target
+      FailureAction=none
+      StartLimitIntervalSec=10
+      StartLimitBurst=5
+
+      [Service]
+      Type=simple
+      Environment="HOME=/var/run/forward-proxy"
+      ExecStart=/usr/bin/docker run --rm --publish 8888:8888/tcp --name forward-proxy ghcr.io/memes/terraform-google-private-bastion/forward-proxy:4.0.1
+      ExecStop=/usr/bin/docker stop forward-proxy
+      ExecStopPost=/usr/bin/docker rm forward-proxy
+      RestartSec=1
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable --now forward-proxy
+
+""",  # noqa: E501
+                                    ),
+                                ],
+                            ),
+                        ),
+                        project=project_id,
+                        zone=zone,
+                    ),
+                ),
+            )
+            instance = instances_client.get(
+                request=compute_v1.GetInstanceRequest(
+                    instance=name,
+                    project=project_id,
+                    zone=zone,
+                ),
+            )
+
+        request.addfinalizer(_cleanup)
+        return instance
 
     return _builder
