@@ -157,6 +157,7 @@ variable "features" {
     disable_auto_lb_firewall            = optional(bool, false)
     managed_prometheus                  = optional(bool, true)
     managed_opentelemetry               = optional(bool, false)
+    secret_sync                         = optional(bool, false)
   })
   default = {
     default_snat                        = true
@@ -172,6 +173,7 @@ variable "features" {
     disable_auto_lb_firewall            = false
     managed_prometheus                  = true
     managed_opentelemetry               = false
+    secret_sync                         = false
   }
   description = <<-EOD
   The set of boolean feature flags that will be enabled on the Autopilot cluster. Unless modified, the cluster will be

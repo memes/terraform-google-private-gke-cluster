@@ -124,6 +124,13 @@ resource "google_container_cluster" "cluster" {
     disabled = !try(var.features.default_snat, true)
   }
 
+  secret_sync_config {
+    enabled = try(var.features.secret_sync, true)
+    rotation_config {
+      enabled = true
+    }
+  }
+
   secret_manager_config {
     enabled = try(var.features.secret_manager, true)
     rotation_config {
