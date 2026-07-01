@@ -164,19 +164,6 @@ resource "google_container_cluster" "cluster" {
   }
 
   monitoring_config {
-    enable_components = [
-      "SYSTEM_COMPONENTS",
-      "DAEMONSET",
-      "DEPLOYMENT",
-      "STATEFULSET",
-      "JOBSET",
-      "STORAGE",
-      "HPA",
-      "POD",
-      "CADVISOR",
-      "KUBELET",
-      "DCGM",
-    ]
     advanced_datapath_observability_config {
       enable_metrics = !try(var.features.dataplane_v2_advanced_observability, false)
       enable_relay   = try(var.features.dataplane_v2_advanced_observability, false)
