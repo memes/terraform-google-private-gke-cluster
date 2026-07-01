@@ -198,3 +198,25 @@ variable "nap" {
   Currently, only network tags can be specified.
   EOD
 }
+
+variable "dns" {
+  type = object({
+    additive_vpc_scope_dns_domain = optional(string)
+  })
+  nullable = true
+  validation {
+    condition = var.dns == null ? true : (
+      coalesce(try(var.dns.additive_vpc_scope_dns_domain, null), "unspecified") == "unspecified" ? true : (
+        !endswith(var.dns.additive_vpc_scope_dns_domain, "cluster.local") &&
+        can(regex("^(?:[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\\.)+[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]$", var.dns.additive_vpc_scope_dns_domain))
+      )
+    )
+    error_message = "The dns field additive_vpc_scope_dns_domain must be a valid RFC1035 domain name other than cluster.local"
+  }
+  default     = null
+  description = <<-EOD
+  GKE Autopilot clusters are provisioned with Cloud DNS in cluster scope mode by default. The only option supported for
+  DNS is additive scope which can be enabled by providing an alternative domain to 'cluster.local' through the use of
+  additive_vpc_scope_dns_domain field, allowing the resolution of headless services in the VPC.
+  EOD
+}

@@ -138,6 +138,13 @@ resource "google_container_cluster" "cluster" {
     }
   }
 
+  dynamic "dns_config" {
+    for_each = var.dns == null ? {} : { dns = var.dns }
+    content {
+      additive_vpc_scope_dns_domain = try(dns_config.value.additive_vpc_scope_dns_domain, null)
+    }
+  }
+
   gateway_api_config {
     channel = try(var.features.gateway_api, true) ? "CHANNEL_STANDARD" : "CHANNEL_DISABLED"
   }
