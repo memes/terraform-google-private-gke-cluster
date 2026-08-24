@@ -1,4 +1,14 @@
+FROM mcr.microsoft.com/devcontainers/base:bookworm AS ca-certs
+USER root
+COPY *pem /run/ca-certs/sources/
+
+# Split bundle(s) to individual crt (PEM) files
+RUN mkdir -p /run/ca-certs/extracts
+WORKDIR /run/ca-certs/extracts
+RUN openssl storeutl /run/ca-certs/sources/*pem | \
+    awk '/BEGIN CERTIFICATE/ { c++; } /BEGIN CERTIFICATE/,/END CERTIFICATE/ {print > c ".crt"}'
+
 FROM mcr.microsoft.com/devcontainers/python:3.12-bookworm
-# Temporary workaround for yarn GPG expiration
-RUN curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | \
-    sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/yarn-archive-keyring.gpg
+USER root
+COPY --from=ca-certs /run/ca-certs/extracts/*.crt /usr/local/share/ca-certificates/
+RUN update-ca-certificates -v
